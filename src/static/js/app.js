@@ -19,6 +19,9 @@
     currentTrack: null,
     currentIndex: -1,
     isPlaying: false,
+    sortBy: 'name',       // name, project, duration, date
+    sortAsc: true,
+    trackTags: {},        // { trackId: [{id, name, color}] }
   };
 
   // --- DOM refs ---
@@ -45,10 +48,70 @@
     return res.json();
   }
 
+  async function fetchAlbums() {
+    const res = await fetch('/api/albums');
+    if (!res.ok) return [];
+    return res.json();
+  }
+
+  async function fetchProjects() {
+    const res = await fetch('/api/projects');
+    if (!res.ok) return [];
+    return res.json();
+  }
+
   async function searchTracks(query) {
     const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
     if (!res.ok) return [];
     return res.json();
+  }
+
+  async function fetchTags() {
+    const res = await fetch('/api/tags');
+    if (!res.ok) return [];
+    return res.json();
+  }
+
+  async function fetchTrackTags() {
+    const res = await fetch('/api/track-tags');
+    if (!res.ok) return {};
+    return res.json();
+  }
+
+  // --- Sorting ---
+
+  function sortTracks(tracks) {
+    const sorted = [...tracks];
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      switch (state.sortBy) {
+        case 'name':
+          cmp = (a.display_name || a.filename).localeCompare(b.display_name || b.filename);
+          break;
+        case 'project':
+          cmp = (a.project_name || '').localeCompare(b.project_name || '');
+          break;
+        case 'duration':
+          cmp = (a.duration_seconds || 0) - (b.duration_seconds || 0);
+          break;
+        case 'date':
+          cmp = (a.modified_at || 0) - (b.modified_at || 0);
+          break;
+      }
+      return state.sortAsc ? cmp : -cmp;
+    });
+    return sorted;
+  }
+
+  function handleSort(field) {
+    if (state.sortBy === field) {
+      state.sortAsc = !state.sortAsc;
+    } else {
+      state.sortBy = field;
+      state.sortAsc = true;
+    }
+    state.tracks = sortTracks(state.tracks);
+    renderTrackList(state.tracks);
   }
 
   // --- Rendering ---
@@ -63,24 +126,189 @@
       return;
     }
 
-    const rows = tracks.map((t, i) => `
-      <div class="track-row${state.currentIndex === i ? ' track-active' : ''}" data-index="${i}">
-        <span class="track-indicator">${t.is_changed ? '~' : '>'}</span>
-        <span class="track-name">${t.display_name || t.filename}</span>
-        <span class="track-project">${t.project_name || ''}</span>
-        <span class="track-duration">${formatTime(t.duration_seconds)}</span>
-      </div>
-    `).join('');
+    const totalDuration = tracks.reduce((sum, t) => sum + (t.duration_seconds || 0), 0);
+    const sortIcon = state.sortAsc ? '↑' : '↓';
 
-    content.innerHTML = `<div class="track-list">${rows}</div>`;
+    const toolbar = `
+      <div class="track-toolbar">
+        <div class="track-toolbar-info">
+          <span class="track-count">${tracks.length} track${tracks.length !== 1 ? 's' : ''}</span>
+          <span class="track-total-duration">${formatTime(totalDuration)} total</span>
+        </div>
+        <div class="track-toolbar-sort">
+          <span class="sort-label">sort:</span>
+          <button class="sort-btn${state.sortBy === 'name' ? ' sort-active' : ''}" data-sort="name">
+            name ${state.sortBy === 'name' ? sortIcon : ''}
+          </button>
+          <button class="sort-btn${state.sortBy === 'project' ? ' sort-active' : ''}" data-sort="project">
+            project ${state.sortBy === 'project' ? sortIcon : ''}
+          </button>
+          <button class="sort-btn${state.sortBy === 'duration' ? ' sort-active' : ''}" data-sort="duration">
+            length ${state.sortBy === 'duration' ? sortIcon : ''}
+          </button>
+          <button class="sort-btn${state.sortBy === 'date' ? ' sort-active' : ''}" data-sort="date">
+            date ${state.sortBy === 'date' ? sortIcon : ''}
+          </button>
+        </div>
+      </div>`;
 
-    // Attach click handlers
+    const rows = tracks.map((t, i) => {
+      const tags = state.trackTags[t.id] || [];
+      const tagHtml = tags.map(tag =>
+        `<span class="tag-pill" style="--tag-color: ${tag.color || '#555'}">${tag.name}</span>`
+      ).join('');
+
+      return `
+        <div class="track-row${state.currentIndex === i ? ' track-active' : ''}" data-index="${i}">
+          <span class="track-indicator">${state.currentIndex === i ? '▶' : (t.is_changed ? '~' : '>')}</span>
+          <span class="track-name">${t.display_name || t.filename}</span>
+          <span class="track-tags">${tagHtml}</span>
+          <span class="track-project">${t.album_name ? t.album_name + ' / ' : ''}${t.project_name || ''}</span>
+          <span class="track-duration">${formatTime(t.duration_seconds)}</span>
+        </div>`;
+    }).join('');
+
+    content.innerHTML = `${toolbar}<div class="track-list">${rows}</div>`;
+
+    // Sort button handlers
+    content.querySelectorAll('.sort-btn').forEach(btn => {
+      btn.addEventListener('click', () => handleSort(btn.dataset.sort));
+    });
+
+    // Track click handlers
     content.querySelectorAll('.track-row').forEach(row => {
       row.addEventListener('click', () => {
         const idx = parseInt(row.dataset.index, 10);
         playTrack(idx);
       });
     });
+  }
+
+  function renderAlbums(albums) {
+    if (!albums.length) {
+      content.innerHTML = `
+        <div class="empty-state">
+          <p>no albums found</p>
+        </div>`;
+      return;
+    }
+
+    const cards = albums.map(a => `
+      <div class="album-card" data-album-id="${a.id}" data-album-name="${a.name}">
+        <div class="album-art">
+          <img src="${a.cover_art_url}" alt="${a.name}" loading="lazy">
+        </div>
+        <div class="album-info">
+          <div class="album-name">${a.name}</div>
+          <div class="album-meta">${a.project_count} project${a.project_count !== 1 ? 's' : ''}</div>
+        </div>
+      </div>
+    `).join('');
+
+    content.innerHTML = `<div class="view-header">Albums</div><div class="card-grid">${cards}</div>`;
+
+    content.querySelectorAll('.album-card').forEach(card => {
+      card.addEventListener('click', async () => {
+        const albumName = card.dataset.albumName;
+        const albumId = card.dataset.albumId;
+        const coverUrl = `/api/albums/${albumId}/cover`;
+
+        const res = await fetch(`/api/tracks`);
+        const allTracks = await res.json();
+        const albumTracks = allTracks.filter(t => t.album_name === albumName);
+
+        renderAlbumExpanded(albumName, coverUrl, albumTracks);
+      });
+    });
+  }
+
+  function renderAlbumExpanded(albumName, coverUrl, tracks) {
+    state.tracks = tracks;
+    const totalDuration = tracks.reduce((sum, t) => sum + (t.duration_seconds || 0), 0);
+
+    const rows = tracks.map((t, i) => `
+      <div class="track-row${state.currentIndex === i ? ' track-active' : ''}" data-index="${i}">
+        <span class="track-indicator">${state.currentIndex === i ? '▶' : '>'}</span>
+        <span class="track-name">${t.display_name || t.filename}</span>
+        <span class="track-project">${t.project_name || ''}</span>
+        <span class="track-duration">${formatTime(t.duration_seconds)}</span>
+      </div>
+    `).join('');
+
+    content.innerHTML = `
+      <div class="album-expanded">
+        <button class="back-btn" id="back-to-albums">← albums</button>
+        <div class="album-expanded-header">
+          <div class="album-expanded-art">
+            <img src="${coverUrl}" alt="${albumName}">
+          </div>
+          <div class="album-expanded-info">
+            <div class="album-expanded-name">${albumName}</div>
+            <div class="album-expanded-meta">
+              ${tracks.length} track${tracks.length !== 1 ? 's' : ''} · ${formatTime(totalDuration)}
+            </div>
+          </div>
+        </div>
+        <div class="track-list">${rows}</div>
+      </div>`;
+
+    document.getElementById('back-to-albums').addEventListener('click', async () => {
+      const albums = await fetchAlbums();
+      renderAlbums(albums);
+    });
+
+    content.querySelectorAll('.track-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const idx = parseInt(row.dataset.index, 10);
+        playTrack(idx);
+      });
+    });
+  }
+
+  function renderProjects(projects) {
+    if (!projects.length) {
+      content.innerHTML = `
+        <div class="empty-state">
+          <p>no projects found</p>
+        </div>`;
+      return;
+    }
+
+    const cards = projects.map(p => `
+      <div class="project-card" data-project-id="${p.id}">
+        <div class="project-name">${p.name}</div>
+        <div class="project-meta">${p.album_name ? p.album_name + ' · ' : ''}${p.track_count} track${p.track_count !== 1 ? 's' : ''}</div>
+      </div>
+    `).join('');
+
+    content.innerHTML = `<div class="view-header">Projects</div><div class="card-grid">${cards}</div>`;
+
+    content.querySelectorAll('.project-card').forEach(card => {
+      card.addEventListener('click', async () => {
+        const projectName = card.querySelector('.project-name').textContent;
+        const res = await fetch(`/api/tracks`);
+        const allTracks = await res.json();
+        const projectTracks = allTracks.filter(t => t.project_name === projectName);
+        state.tracks = projectTracks;
+        renderTrackList(projectTracks);
+      });
+    });
+  }
+
+  function renderCollections() {
+    content.innerHTML = `
+      <div class="empty-state">
+        <p>no collections yet</p>
+        <p class="text-muted">collections coming soon</p>
+      </div>`;
+  }
+
+  function renderFavorites() {
+    content.innerHTML = `
+      <div class="empty-state">
+        <p>no favorites yet</p>
+        <p class="text-muted">click a track to start listening</p>
+      </div>`;
   }
 
   // --- Playback ---
@@ -184,6 +412,47 @@
     }, 250);
   });
 
+  // --- Sidebar Navigation ---
+
+  const sidebarLinks = document.querySelectorAll('.sidebar-link');
+
+  sidebarLinks.forEach(link => {
+    link.addEventListener('click', async (e) => {
+      e.preventDefault();
+
+      // Update active state
+      sidebarLinks.forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+
+      const view = link.dataset.view;
+
+      switch (view) {
+        case 'all': {
+          const tracks = await fetchTracks();
+          state.tracks = tracks;
+          renderTrackList(tracks);
+          break;
+        }
+        case 'albums': {
+          const albums = await fetchAlbums();
+          renderAlbums(albums);
+          break;
+        }
+        case 'projects': {
+          const projects = await fetchProjects();
+          renderProjects(projects);
+          break;
+        }
+        case 'collections':
+          renderCollections();
+          break;
+        case 'favorites':
+          renderFavorites();
+          break;
+      }
+    });
+  });
+
   // --- Keyboard shortcuts ---
 
   document.addEventListener('keydown', (e) => {
@@ -196,9 +465,13 @@
   // --- Init ---
 
   async function init() {
-    const tracks = await fetchTracks();
-    state.tracks = tracks;
-    renderTrackList(tracks);
+    const [tracks, trackTags] = await Promise.all([
+      fetchTracks(),
+      fetchTrackTags(),
+    ]);
+    state.trackTags = trackTags;
+    state.tracks = sortTracks(tracks);
+    renderTrackList(state.tracks);
   }
 
   init();

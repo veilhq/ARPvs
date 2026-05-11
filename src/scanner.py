@@ -68,14 +68,32 @@ def detect_hierarchy(wav_path: Path, scan_root: str) -> dict:
 
 
 def get_wav_duration(filepath: Path) -> float:
-    """Get duration in seconds from a WAV file header."""
+    """Get duration in seconds from a WAV file header.
+
+    Falls back to mutagen if the stdlib wave module can't handle the file
+    (e.g. compressed WAV or non-standard headers).
+    """
+    # Try stdlib first (fastest for standard PCM WAV)
     try:
         with wave.open(str(filepath), "rb") as wf:
             frames = wf.getnframes()
             rate = wf.getframerate()
-            return round(frames / float(rate), 2)
+            duration = round(frames / float(rate), 2)
+            if duration > 0:
+                return duration
     except Exception:
-        return 0.0
+        pass
+
+    # Fallback to mutagen (handles more formats)
+    try:
+        from mutagen import File as MutagenFile
+        audio = MutagenFile(str(filepath))
+        if audio is not None and audio.info is not None:
+            return round(audio.info.length, 2)
+    except Exception:
+        pass
+
+    return 0.0
 
 
 def hash_file(filepath: Path, chunk_size: int = 8192) -> str:
