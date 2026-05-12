@@ -306,25 +306,54 @@ export function renderAlbums(albums) {
     return;
   }
 
-  const cards = albums.map(a => `
+  const cards = albums.map(a => {
+    const trackLabel = `${a.track_count} track${a.track_count !== 1 ? 's' : ''}`;
+    const durationLabel = formatTime(a.total_duration || 0);
+
+    return `
     <div class="album-card" data-album-id="${a.id}" data-album-name="${a.name}">
       <div class="album-art">
-        <img src="${a.cover_art_url}" alt="${a.name}" loading="lazy">
+        <img src="${a.cover_art_url}" alt="${a.name}" loading="lazy" crossorigin="anonymous">
+        <div class="album-vinyl">
+          <div class="vinyl-groove"></div>
+          <div class="vinyl-groove vinyl-groove-2"></div>
+          <div class="vinyl-groove vinyl-groove-3"></div>
+          <div class="vinyl-label"></div>
+        </div>
       </div>
       <div class="album-info">
         <div class="album-name">${a.name}</div>
-        <div class="album-meta">${a.project_count} project${a.project_count !== 1 ? 's' : ''}</div>
+        <div class="album-meta">
+          <span>${trackLabel}</span>
+          <span class="album-meta-sep">·</span>
+          <span>${durationLabel}</span>
+        </div>
       </div>
       <div class="album-controls">
-        <button class="album-btn album-btn-play" title="Play album">${lucideIcon('play-circle', 20)}</button>
-        <button class="album-btn album-btn-info" title="View details">ℹ</button>
+        <button class="album-btn album-btn-play" title="Play album">${lucideIcon('play-circle', 22)}</button>
+        <button class="album-btn album-btn-info" title="View details">${lucideIcon('chevron-right', 22)}</button>
       </div>
-    </div>
-  `).join('');
+      <div class="album-card-glow"></div>
+    </div>`;
+  }).join('');
 
   content.innerHTML = `<div class="view-header">Albums</div><div class="card-grid">${cards}</div>`;
 
+  // Extract dominant color from album art for card tinting
   content.querySelectorAll('.album-card').forEach(card => {
+    const img = card.querySelector('.album-art img');
+    const glowEl = card.querySelector('.album-card-glow');
+
+    img.addEventListener('load', () => {
+      try {
+        const color = extractDominantColor(img);
+        if (color) {
+          card.style.setProperty('--card-tint', color);
+          glowEl.style.background = `radial-gradient(ellipse at bottom, ${color}22 0%, transparent 70%)`;
+        }
+      } catch (e) { /* cross-origin or SVG placeholder — ignore */ }
+    });
+
     const playBtn = card.querySelector('.album-btn-play');
     const infoBtn = card.querySelector('.album-btn-info');
 
@@ -335,7 +364,6 @@ export function renderAlbums(albums) {
       const allTracks = await fetchTracks();
       const albumTracks = allTracks.filter(t => t.album_name === albumName);
 
-      // Import playAlbum lazily to avoid circular imports.
       const { playAlbum } = await import('./player.js');
       playAlbum(albumTracks, albumName);
     });
@@ -351,7 +379,56 @@ export function renderAlbums(albums) {
 
       renderAlbumExpanded(albumName, coverUrl, albumTracks);
     });
+
+    // Clicking the card itself opens expanded view
+    card.addEventListener('click', async () => {
+      const albumName = card.dataset.albumName;
+      const albumId   = card.dataset.albumId;
+      const coverUrl  = `/api/albums/${albumId}/cover`;
+
+      const allTracks = await fetchTracks();
+      const albumTracks = allTracks.filter(t => t.album_name === albumName);
+
+      renderAlbumExpanded(albumName, coverUrl, albumTracks);
+    });
   });
+}
+
+/**
+ * Extract a dominant color from an image element using canvas sampling.
+ * Returns an rgb() string or null if extraction fails.
+ */
+function extractDominantColor(img) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const size = 32; // Sample at low res for speed
+  canvas.width = size;
+  canvas.height = size;
+  ctx.drawImage(img, 0, 0, size, size);
+
+  const data = ctx.getImageData(0, 0, size, size).data;
+  let r = 0, g = 0, b = 0, count = 0;
+
+  // Sample every 4th pixel, skip very dark and very bright pixels
+  for (let i = 0; i < data.length; i += 16) {
+    const pr = data[i], pg = data[i + 1], pb = data[i + 2];
+    const brightness = (pr + pg + pb) / 3;
+    if (brightness > 30 && brightness < 220) {
+      r += pr; g += pg; b += pb; count++;
+    }
+  }
+
+  if (count === 0) return null;
+  r = Math.round(r / count);
+  g = Math.round(g / count);
+  b = Math.round(b / count);
+
+  // Boost saturation slightly for visual impact
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max - min < 20) return null; // Too gray, skip
+
+  return `rgb(${r},${g},${b})`;
 }
 
 // --- Album expanded view ---

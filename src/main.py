@@ -215,13 +215,17 @@ async def get_library_summary():
 
 @app.get("/api/albums")
 async def list_albums():
-    """List all detected albums."""
+    """List all detected albums with track count and total duration."""
     conn = get_connection()
     try:
         rows = conn.execute("""
-            SELECT a.*, COUNT(p.id) as project_count
+            SELECT a.*,
+                   COUNT(DISTINCT p.id) as project_count,
+                   COUNT(t.id) as track_count,
+                   COALESCE(SUM(t.duration_seconds), 0) as total_duration
             FROM albums a
             LEFT JOIN projects p ON p.album_id = a.id
+            LEFT JOIN tracks t ON t.project_id = p.id
             GROUP BY a.id
             ORDER BY a.name
         """).fetchall()
