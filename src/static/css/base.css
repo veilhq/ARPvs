@@ -9,6 +9,8 @@
 :root {
   --bg: #000000;
   --bg-surface: #0a0a0a;
+  --bg-card: #0a0a0a;
+  --bg-elevated: #0e0e0e;
   --border: #1a1a1a;
   --border-strong: #2a2a2a;
   --text-bright: #ffffff;
@@ -16,14 +18,17 @@
   --text-muted: #808080;
   --text-dim: #505050;
   --accent: #00ff41;
-  --accent-dim: rgba(0, 255, 65, 0.08);
-  --accent-border: rgba(0, 255, 65, 0.4);
+  --accent-dim: rgba(0, 255, 65, 0.04);
+  --accent-glow: rgba(0, 255, 65, 0.06);
+  --accent-border: rgba(0, 255, 65, 0.25);
   --warm: #ffb000;
   --cool: #00cccc;
+  --comp: #ff3333;
   --alert: #ff0041;
   --font: 'Departure Mono', monospace;
   --font-heading: 'IBM Plex Sans', 'Helvetica Neue', 'Helvetica', sans-serif;
   --font-mono: 'Departure Mono', monospace;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html, body {
@@ -43,7 +48,6 @@ html, body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--accent);
-  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {

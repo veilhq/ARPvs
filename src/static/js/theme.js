@@ -1,110 +1,240 @@
 /**
- * theme.js — Accent color management and persistence.
+ * theme.js — Accent color + palette engine for ARPvs.
+ *
+ * Handles:
+ * - Reading/writing accent color to localStorage
+ * - Hex → RGB → HSL conversions
+ * - Generating a 4-color palette from the accent using the selected palette mode
+ * - Applying all derived colors as CSS custom properties on :root
+ * - Cycling through palette modes on button click
+ * - Scroll shadow on topbar
  */
 
 const STORAGE_KEY = 'arpvs-accent-color';
+const PALETTE_MODE_KEY = 'arpvs-palette-mode';
 const DEFAULT_ACCENT = '#00ff41';
 
-/**
- * Convert hex color to RGB values
- */
+// --- Color conversion utilities ---
+
 function hexToRgb(hex) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16)
-  } : null;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return { r, g, b };
 }
 
-/**
- * Convert RGB to hex
- */
-function rgbToHex(r, g, b) {
-  return '#' + [r, g, b].map(x => {
-    const hex = x.toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
-  }).join('');
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
+
+  if (max === min) {
+    h = s = 0;
+  } else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  return { h: h * 360, s, l };
 }
 
-/**
- * Lighten a color by a percentage
- */
-function lightenColor(hex, percent) {
+function hslToHex(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+  const m = l - c / 2;
+  let r, g, b;
+
+  if (h < 60)       { r = c; g = x; b = 0; }
+  else if (h < 120) { r = x; g = c; b = 0; }
+  else if (h < 180) { r = 0; g = c; b = x; }
+  else if (h < 240) { r = 0; g = x; b = c; }
+  else if (h < 300) { r = x; g = 0; b = c; }
+  else              { r = c; g = 0; b = x; }
+
+  r = Math.round((r + m) * 255);
+  g = Math.round((g + m) * 255);
+  b = Math.round((b + m) * 255);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function dimColor(hex, factor) {
   const rgb = hexToRgb(hex);
-  if (!rgb) return hex;
-  
-  const r = Math.min(255, Math.round(rgb.r + (255 - rgb.r) * (percent / 100)));
-  const g = Math.min(255, Math.round(rgb.g + (255 - rgb.g) * (percent / 100)));
-  const b = Math.min(255, Math.round(rgb.b + (255 - rgb.b) * (percent / 100)));
-  
-  return rgbToHex(r, g, b);
+  return `rgb(${Math.round(rgb.r * factor)},${Math.round(rgb.g * factor)},${Math.round(rgb.b * factor)})`;
 }
 
-/**
- * Darken a color by a percentage
- */
-function darkenColor(hex, percent) {
+// --- Palette modes ---
+
+const PALETTE_MODES = ['split', 'triadic', 'analogous', 'square', 'complement'];
+const PALETTE_LABELS = { split: 'SPL', triadic: 'TRI', analogous: 'ANA', square: 'SQR', complement: 'CMP' };
+const PALETTE_TITLES = {
+  split:      'Split-complementary',
+  triadic:    'Triadic',
+  analogous:  'Analogous',
+  square:     'Tetradic (square)',
+  complement: 'Complementary'
+};
+
+function buildPalette(hex, mode) {
   const rgb = hexToRgb(hex);
-  if (!rgb) return hex;
-  
-  const r = Math.max(0, Math.round(rgb.r * (1 - percent / 100)));
-  const g = Math.max(0, Math.round(rgb.g * (1 - percent / 100)));
-  const b = Math.max(0, Math.round(rgb.b * (1 - percent / 100)));
-  
-  return rgbToHex(r, g, b);
+  const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+  let warm, cool, comp;
+
+  switch (mode) {
+    case 'triadic':
+      warm = hslToHex(hsl.h + 120, Math.min(hsl.s * 1.1, 1), Math.min(hsl.l * 1.15, 0.75));
+      cool = hslToHex(hsl.h + 240, Math.min(hsl.s * 0.9, 1), Math.min(hsl.l * 0.95, 0.65));
+      comp = hslToHex(hsl.h + 180, hsl.s * 0.7, Math.min(hsl.l * 0.85, 0.55));
+      break;
+    case 'analogous':
+      warm = hslToHex(hsl.h + 30, Math.min(hsl.s * 1.05, 1), Math.min(hsl.l * 1.1, 0.75));
+      cool = hslToHex(hsl.h + 60, Math.min(hsl.s * 0.9, 1), Math.min(hsl.l * 0.95, 0.65));
+      comp = hslToHex(hsl.h - 30, hsl.s * 0.85, Math.min(hsl.l * 0.9, 0.6));
+      break;
+    case 'square':
+      warm = hslToHex(hsl.h + 90, Math.min(hsl.s * 1.1, 1), Math.min(hsl.l * 1.1, 0.75));
+      cool = hslToHex(hsl.h + 180, Math.min(hsl.s * 0.9, 1), Math.min(hsl.l * 0.95, 0.65));
+      comp = hslToHex(hsl.h + 270, hsl.s * 0.8, Math.min(hsl.l * 0.85, 0.55));
+      break;
+    case 'complement':
+      warm = hslToHex(hsl.h + 180, Math.min(hsl.s * 1.1, 1), Math.min(hsl.l * 1.2, 0.75));
+      cool = hslToHex(hsl.h + 180, Math.min(hsl.s * 0.7, 1), Math.min(hsl.l * 0.7, 0.5));
+      comp = hslToHex(hsl.h, hsl.s * 0.5, Math.min(hsl.l * 0.6, 0.4));
+      break;
+    default: // 'split' — split-complementary
+      warm = hslToHex(hsl.h + 150, Math.min(hsl.s * 1.1, 1), Math.min(hsl.l * 1.15, 0.75));
+      cool = hslToHex(hsl.h + 210, Math.min(hsl.s * 0.9, 1), Math.min(hsl.l * 0.95, 0.65));
+      comp = hslToHex(hsl.h + 180, hsl.s * 0.7, Math.min(hsl.l * 0.85, 0.55));
+  }
+
+  return { accent: hex, warm, cool, comp };
 }
 
-/**
- * Apply accent color to CSS variables
- */
-export function setAccentColor(hex) {
+// --- State ---
+
+let paletteMode = localStorage.getItem(PALETTE_MODE_KEY) || 'split';
+if (!PALETTE_MODES.includes(paletteMode)) paletteMode = 'split';
+
+// --- Apply accent + palette to CSS custom properties ---
+
+function applyAccent(hex) {
   const root = document.documentElement;
-  
-  // Main accent
+  const rgb = hexToRgb(hex);
+  const palette = buildPalette(hex, paletteMode);
+
   root.style.setProperty('--accent', hex);
-  
-  // Derived colors
-  root.style.setProperty('--accent-dim', hex + '14'); // 8% opacity
-  root.style.setProperty('--accent-border', hex + '66'); // 40% opacity
-  
-  // Store preference
+  root.style.setProperty('--accent-dim', `rgba(${rgb.r},${rgb.g},${rgb.b},0.04)`);
+  root.style.setProperty('--accent-glow', `rgba(${rgb.r},${rgb.g},${rgb.b},0.06)`);
+  root.style.setProperty('--accent-border', `rgba(${rgb.r},${rgb.g},${rgb.b},0.25)`);
+  root.style.setProperty('--warm', palette.warm);
+  root.style.setProperty('--cool', palette.cool);
+  root.style.setProperty('--comp', palette.comp);
+
+  updatePalettePreview(palette);
+
+  // Update dither background if active
+  if (window.ditherBackground) {
+    window.ditherBackground.setColor(hex);
+    window.ditherBackground.setPalette([palette.accent, palette.warm, palette.cool, palette.comp]);
+  }
+}
+
+function updatePalettePreview(palette) {
+  const preview = document.getElementById('palette-preview');
+  if (!preview) return;
+  const swatches = preview.querySelectorAll('.swatch');
+  const colors = [palette.accent, palette.warm, palette.cool, palette.comp];
+  const labels = ['accent', 'warm', 'cool', 'comp'];
+
+  swatches.forEach((sw, i) => {
+    if (i < colors.length) {
+      sw.style.background = colors[i];
+      sw.setAttribute('title', `${labels[i]}: ${colors[i]}`);
+    }
+  });
+}
+
+// --- Exported API (keeps compatibility with existing imports) ---
+
+export function setAccentColor(hex) {
+  applyAccent(hex);
   localStorage.setItem(STORAGE_KEY, hex);
 }
 
-/**
- * Get the current accent color
- */
 export function getAccentColor() {
   return localStorage.getItem(STORAGE_KEY) || DEFAULT_ACCENT;
 }
 
-/**
- * Initialize theme from storage or default
- */
 export function initializeTheme() {
   const savedColor = getAccentColor();
-  setAccentColor(savedColor);
-  
-  // Update the color picker if it exists
+  applyAccent(savedColor);
+
   const picker = document.getElementById('accent-color');
   if (picker) {
     picker.value = savedColor;
   }
+
+  updateModeButton();
 }
 
-/**
- * Setup color picker event listener
- */
 export function setupColorPicker() {
   const picker = document.getElementById('accent-color');
   if (!picker) return;
-  
-  picker.addEventListener('change', (e) => {
-    setAccentColor(e.target.value);
-  });
-  
+
   picker.addEventListener('input', (e) => {
     setAccentColor(e.target.value);
   });
+
+  picker.addEventListener('change', (e) => {
+    localStorage.setItem(STORAGE_KEY, e.target.value);
+  });
+}
+
+// --- Palette mode toggle ---
+
+function updateModeButton() {
+  const btn = document.getElementById('palette-mode');
+  if (!btn) return;
+  btn.textContent = PALETTE_LABELS[paletteMode] || 'SPL';
+  const nextIdx = (PALETTE_MODES.indexOf(paletteMode) + 1) % PALETTE_MODES.length;
+  btn.title = `${PALETTE_TITLES[paletteMode]} — click for ${PALETTE_TITLES[PALETTE_MODES[nextIdx]].toLowerCase()}`;
+}
+
+export function setupPaletteMode() {
+  const btn = document.getElementById('palette-mode');
+  if (!btn) return;
+
+  updateModeButton();
+
+  btn.addEventListener('click', () => {
+    const idx = PALETTE_MODES.indexOf(paletteMode);
+    paletteMode = PALETTE_MODES[(idx + 1) % PALETTE_MODES.length];
+    localStorage.setItem(PALETTE_MODE_KEY, paletteMode);
+    updateModeButton();
+
+    const picker = document.getElementById('accent-color');
+    applyAccent(picker ? picker.value : DEFAULT_ACCENT);
+  });
+}
+
+// --- Scroll shadow on topbar ---
+
+export function setupScrollShadow() {
+  const topbar = document.querySelector('.topbar');
+  if (!topbar) return;
+
+  const content = document.querySelector('.content');
+  const target = content || window;
+
+  if (content) {
+    content.addEventListener('scroll', () => {
+      topbar.classList.toggle('scrolled', content.scrollTop > 10);
+    });
+  } else {
+    window.addEventListener('scroll', () => {
+      topbar.classList.toggle('scrolled', window.scrollY > 10);
+    });
+  }
 }

@@ -22,6 +22,9 @@ data/cover_art/
 *.swo
 *~
 
+# Test data
+test_library/
+
 # OS
 .DS_Store
 Thumbs.db

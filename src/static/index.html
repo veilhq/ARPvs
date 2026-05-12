@@ -30,6 +30,13 @@
     </div>
     <div class="topbar-accent-selector">
       <input type="color" id="accent-color" class="accent-picker" value="#00ff41" title="Choose accent color">
+      <div class="palette-preview" id="palette-preview">
+        <span class="swatch" title="accent"></span>
+        <span class="swatch" title="warm"></span>
+        <span class="swatch" title="cool"></span>
+        <span class="swatch" title="comp"></span>
+      </div>
+      <button class="palette-mode-btn" id="palette-mode" type="button">SPL</button>
     </div>
     <button id="reload-btn" class="topbar-reload" title="Reload page"></button>
   </header>
@@ -93,6 +100,7 @@
 
   <!-- Splash screen -->
   <div id="splash-screen" class="splash-screen">
+    <canvas id="dither-bg"></canvas>
     <div class="splash-content">
       <div class="splash-icon" id="splash-icon"></div>
       <p class="splash-text">ARPvs® Secure Shell</p>

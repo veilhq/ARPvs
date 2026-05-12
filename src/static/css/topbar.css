@@ -1,4 +1,4 @@
-/* Topbar & Search */
+/* Topbar — Sticky glass header with accent picker */
 
 .topbar {
   position: fixed;
@@ -10,8 +10,28 @@
   align-items: center;
   padding: 0 16px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg);
   z-index: 100;
+  transition: box-shadow 0.3s var(--ease);
+}
+
+.topbar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 5, 5, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 0;
+}
+
+.topbar.scrolled {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* All direct children need z-index to sit above the ::before */
+.topbar > * {
+  position: relative;
+  z-index: 1;
 }
 
 .topbar-title {
@@ -26,6 +46,7 @@
   font-family: var(--font-mono);
   line-height: 1;
   margin: 0;
+  flex-shrink: 0;
 }
 
 .topbar-icon {
@@ -48,7 +69,7 @@
   padding: 4px 10px;
   width: 200px;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, width 0.2s var(--ease);
 }
 
 .topbar-search input:focus {
@@ -56,35 +77,37 @@
   width: 280px;
 }
 
+/* --- Accent picker cluster --- */
+
 .topbar-accent-selector {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   margin-right: 8px;
+  flex-shrink: 0;
 }
 
-.accent-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-
+/* Native color input — strip browser chrome */
 .accent-picker {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
   width: 28px;
   height: 28px;
   max-height: 28px;
-  border: 1px solid var(--border);
-  border-radius: 2px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
   cursor: pointer;
   padding: 2px;
   margin: 0;
-  background: var(--bg-surface);
   flex-shrink: 0;
   box-sizing: border-box;
-  -webkit-appearance: none;
-  appearance: none;
+  transition: border-color 0.2s var(--ease), transform 0.15s var(--ease);
+}
+
+.accent-picker:hover {
+  border-color: var(--accent);
+  transform: scale(1.1);
 }
 
 .accent-picker::-webkit-color-swatch-wrapper {
@@ -94,15 +117,65 @@
 
 .accent-picker::-webkit-color-swatch {
   border: none;
-  border-radius: 0;
+}
+
+.accent-picker::-moz-color-swatch {
+  border: none;
+}
+
+/* 2x2 swatch grid showing the current palette */
+.palette-preview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  padding: 2px;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+}
+
+.palette-preview .swatch {
+  width: 9px;
+  height: 9px;
+  transition: background 0.3s var(--ease), transform 0.15s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.palette-preview .swatch:nth-child(1) { background: var(--accent); }
+.palette-preview .swatch:nth-child(2) { background: var(--warm); }
+.palette-preview .swatch:nth-child(3) { background: var(--cool); }
+.palette-preview .swatch:nth-child(4) { background: var(--comp); }
+
+.palette-preview .swatch:hover {
+  transform: scale(1.6);
+  box-shadow: 0 0 6px currentColor;
+  z-index: 1;
+}
+
+/* Palette mode toggle button */
+.palette-mode-btn {
+  font-family: var(--font);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
   padding: 0;
-  margin: 0;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
+  flex-shrink: 0;
 }
 
-.accent-picker:hover {
-  border-color: var(--accent-border);
+.palette-mode-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
+/* Reload button */
 .topbar-reload {
   background: none;
   border: 1px solid var(--border);
@@ -114,7 +187,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 2px;
   transition: color 0.1s, border-color 0.1s;
   padding: 0;
   margin: 0;

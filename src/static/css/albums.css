@@ -10,9 +10,8 @@
 .project-card {
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 2px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s var(--ease);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -24,8 +23,26 @@
 
 .album-card:hover,
 .project-card:hover {
-  border-color: var(--accent-border);
-  background: var(--accent-dim);
+  border-color: var(--border-strong);
+}
+
+/* Small corner accent marker — like Hypervisor cards */
+.album-card::after,
+.project-card::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 6px;
+  height: 6px;
+  background: var(--comp);
+  opacity: 0;
+  transition: opacity 0.15s var(--ease);
+}
+
+.album-card:hover::after,
+.project-card:hover::after {
+  opacity: 1;
 }
 
 .album-art {
@@ -88,7 +105,6 @@
   color: var(--text-muted);
   width: 32px;
   height: 32px;
-  border-radius: 2px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -100,7 +116,6 @@
 .album-btn:hover {
   color: var(--accent);
   border-color: var(--accent-border);
-  background: var(--accent-dim);
 }
 
 .album-btn svg {
@@ -109,7 +124,17 @@
   padding: 4px;
 }
 
-.album-name,
+.album-name {
+  color: var(--text-bright);
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-heading);
+}
+
 .project-name {
   color: var(--text-bright);
   font-size: 12px;
@@ -185,7 +210,6 @@
   flex-shrink: 0;
   background: #111;
   border: 1px solid var(--border);
-  border-radius: 2px;
   overflow: hidden;
 }
 
@@ -243,7 +267,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--text-muted);
   padding: 6px 0;
   border-bottom: 1px solid var(--border);
   font-family: var(--font-mono);
@@ -264,9 +288,8 @@
 .unexported-card {
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 2px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s var(--ease);
   display: flex;
   align-items: center;
   gap: 16px;
@@ -274,8 +297,7 @@
 }
 
 .unexported-card:hover {
-  border-color: var(--accent-border);
-  background: var(--accent-dim);
+  border-color: var(--border-strong);
 }
 
 .unexported-icon {
@@ -285,7 +307,11 @@
   width: 24px;
   height: 24px;
   flex-shrink: 0;
-  color: var(--text-muted);
+  color: var(--text-dim);
+}
+
+.unexported-card:hover .unexported-icon {
+  color: var(--warm);
 }
 
 .unexported-icon svg {

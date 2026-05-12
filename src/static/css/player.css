@@ -130,6 +130,11 @@
   color: var(--accent);
 }
 
+.player-btn-play:hover {
+  color: var(--text-bright);
+  border-color: var(--accent);
+}
+
 .player-progress {
   flex: 1;
   display: flex;

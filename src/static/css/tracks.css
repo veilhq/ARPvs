@@ -16,7 +16,7 @@
 }
 
 .track-count {
-  color: var(--text);
+  color: var(--accent);
   font-size: 11px;
   font-weight: 500;
   font-family: var(--font-mono);
@@ -45,7 +45,6 @@
   font-size: 10px;
   cursor: pointer;
   padding: 2px 4px;
-  border-radius: 2px;
   transition: color 0.1s;
   letter-spacing: 0.04em;
 }
@@ -90,7 +89,7 @@
 }
 
 .sort-panel-item:hover {
-  background: var(--accent-dim);
+  background: var(--bg-elevated);
   color: var(--text);
 }
 
@@ -139,21 +138,21 @@
   align-items: center;
   gap: 10px;
   padding: 6px 10px;
-  border-radius: 2px;
   cursor: pointer;
-  background: var(--accent-dim);
-  border-left: 2px solid var(--accent);
-  transition: background 0.1s;
+  background: var(--bg-surface);
+  border-left: 2px solid var(--border-strong);
+  transition: background 0.1s, border-color 0.1s;
   font-weight: 500;
   font-family: var(--font-heading);
 }
 
 .track-group-header:hover {
-  background: var(--accent-dim);
+  background: var(--bg-elevated);
+  border-left-color: var(--accent);
 }
 
 .track-group-toggle {
-  color: var(--accent);
+  color: var(--text-dim);
   font-size: 11px;
   text-align: center;
   user-select: none;
@@ -162,6 +161,10 @@
   justify-content: center;
   width: 14px;
   height: 14px;
+}
+
+.track-group-header:hover .track-group-toggle {
+  color: var(--accent);
 }
 
 .track-group-toggle svg {
@@ -196,15 +199,15 @@
 
 .track-version-row {
   padding-left: 20px;
-  background: var(--bg-surface);
+  background: var(--bg);
 }
 
 .track-version-row:hover {
-  background: var(--accent-dim);
+  background: var(--bg-surface);
 }
 
 .track-version-row.track-active {
-  background: var(--accent-dim);
+  background: var(--bg-surface);
   border-left: 2px solid var(--accent);
 }
 
@@ -213,7 +216,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--text-muted);
   font-family: var(--font-mono);
 }
 
@@ -225,17 +228,16 @@
   align-items: center;
   gap: 10px;
   padding: 4px 10px;
-  border-radius: 2px;
   cursor: pointer;
   transition: background 0.1s;
 }
 
 .track-row:hover {
-  background: var(--accent-dim);
+  background: var(--bg-surface);
 }
 
 .track-row.track-active {
-  background: var(--accent-dim);
+  background: var(--bg-surface);
   border-left: 2px solid var(--accent);
 }
 
@@ -350,12 +352,16 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   padding: 2px 5px;
-  border-radius: 2px;
-  background: var(--accent-dim);
-  color: var(--accent);
-  border: 1px solid var(--accent-border);
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
   flex-shrink: 0;
   white-space: nowrap;
+}
+
+.track-row:hover .track-version {
+  color: var(--text-muted);
+  border-color: var(--border-strong);
 }
 
 .track-versions-tag {
@@ -365,13 +371,17 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   padding: 2px 5px;
-  border-radius: 2px;
-  background: var(--accent-dim);
-  color: var(--accent);
-  border: 1px solid var(--accent-border);
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
   flex-shrink: 0;
   white-space: nowrap;
   margin-left: 6px;
+}
+
+.track-group-header:hover .track-versions-tag {
+  color: var(--text-muted);
+  border-color: var(--border-strong);
 }
 
 .track-sub {
@@ -402,7 +412,6 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 2px 6px;
-  border-radius: 2px;
   color: var(--tag-color);
   border: 1px solid var(--tag-color);
   opacity: 0.8;

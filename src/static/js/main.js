@@ -10,12 +10,13 @@ import { state } from './state.js';
 import { fetchTracks, fetchTrackTags } from './api.js';
 import { sortTracks, renderTrackList, setPlayTrack } from './views.js';
 import { playTrack, setOnTrackChange, toggleShuffle, toggleLoop } from './player.js';
-import { initializeTheme, setupColorPicker } from './theme.js';
+import { initializeTheme, setupColorPicker, setupPaletteMode, setupScrollShadow } from './theme.js';
 import { initSplash } from './splash.js';
 import { initializeIcons } from './icons.js';
 
 // Initialize theme from storage
 initializeTheme();
+setupScrollShadow();
 
 // Initialize icons
 initializeIcons();
@@ -85,8 +86,9 @@ async function init() {
   state.tracks    = sortTracks(tracks);
   renderTrackList(state.tracks);
   
-  // Setup color picker after DOM is ready
+  // Setup color picker and palette mode after DOM is ready
   setupColorPicker();
+  setupPaletteMode();
 }
 
 init();
