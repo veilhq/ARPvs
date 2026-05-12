@@ -8,7 +8,7 @@
 
 import { state } from './state.js';
 import { fetchTracks, fetchTrackTags, fetchLibrarySummary, fetchAlbums } from './api.js';
-import { sortTracks, renderTrackList, renderAlbums, setPlayTrack, bumpCoverCache, refreshCurrentView } from './views.js';
+import { sortTracks, renderTrackList, renderAlbums, renderAlbumExpanded, setPlayTrack, bumpCoverCache, refreshCurrentView } from './views.js';
 import { playTrack, setOnTrackChange, toggleShuffle, toggleLoop } from './player.js';
 import { initializeTheme, setupColorPicker, setupPaletteMode, setupScrollShadow } from './theme.js';
 import { initSplash } from './splash.js';
@@ -32,9 +32,20 @@ setTimeout(() => initSplash(SPLASH_DURATION_MS), SPLASH_INIT_DELAY_MS);
 
 // Wire the circular dependency break-points:
 //   views needs to call playTrack  → inject it
-//   player needs to re-render list → inject renderTrackList
+//   player needs to re-render list → inject a view-aware re-render so
+//   starting playback inside, say, the album-expanded view doesn't
+//   kick the user back to the all-tracks list.
 setPlayTrack(playTrack);
-setOnTrackChange(() => renderTrackList(state.tracks));
+setOnTrackChange(() => {
+  const cv = state.currentView;
+  if (cv && cv.type === 'album-expanded') {
+    const { albumId, albumName } = cv.params || {};
+    const cover = albumId != null ? `/api/albums/${albumId}/cover` : '';
+    renderAlbumExpanded(albumName, cover, state.tracks, { albumId });
+    return;
+  }
+  renderTrackList(state.tracks);
+});
 
 // After a track edit, refetch and re-render the *current* view so we
 // stay wherever the user was (all tracks, album-expanded, search, etc.).
