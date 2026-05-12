@@ -15,7 +15,11 @@ ENV_PATH = PROJECT_ROOT / ".env"
 DATA_DIR = PROJECT_ROOT / "data"
 
 # Load .env file if it exists
-load_dotenv(ENV_PATH)
+if ENV_PATH.exists():
+    print(f"[ARPvs] Loading .env from: {ENV_PATH}")
+    load_dotenv(ENV_PATH)
+else:
+    print(f"[ARPvs] WARNING: .env not found at {ENV_PATH}")
 
 DEFAULTS = {
     "scan_root": "",
@@ -28,15 +32,20 @@ DEFAULTS = {
 
 def load_config() -> dict:
     """Load configuration from environment variables, falling back to defaults."""
+    scan_root = os.getenv("SCAN_ROOT", DEFAULTS["scan_root"])
+    port = int(os.getenv("PORT", DEFAULTS["port"]))
+    
     config = {
-        "scan_root": os.getenv("SCAN_ROOT", DEFAULTS["scan_root"]),
-        "port": int(os.getenv("PORT", DEFAULTS["port"])),
+        "scan_root": scan_root,
+        "port": port,
         "window": {
             "width": int(os.getenv("WINDOW_WIDTH", DEFAULTS["window_width"])),
             "height": int(os.getenv("WINDOW_HEIGHT", DEFAULTS["window_height"])),
             "title": os.getenv("WINDOW_TITLE", DEFAULTS["window_title"]),
         },
     }
+    
+    print(f"[ARPvs] Config loaded: SCAN_ROOT={scan_root!r}, PORT={port}")
     return config
 
 

@@ -42,8 +42,20 @@ export function playTrack(index) {
   state.currentIndex = index;
 
   audio.src = `/api/stream/${track.id}`;
-  audio.play();
-  state.isPlaying = true;
+  const playPromise = audio.play();
+  
+  if (playPromise !== undefined) {
+    playPromise
+      .then(() => {
+        state.isPlaying = true;
+      })
+      .catch(err => {
+        console.error('Playback failed:', err);
+        state.isPlaying = false;
+      });
+  } else {
+    state.isPlaying = true;
+  }
 
   // Update player bar UI
   playerTitle.textContent = track.display_name || track.filename;
@@ -67,9 +79,21 @@ export function togglePlay() {
     state.isPlaying = false;
     btnPlay.innerHTML = '&#9654;';
   } else {
-    audio.play();
-    state.isPlaying = true;
-    btnPlay.innerHTML = '&#9646;&#9646;';
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          state.isPlaying = true;
+          btnPlay.innerHTML = '&#9646;&#9646;';
+        })
+        .catch(err => {
+          console.error('Playback failed:', err);
+          state.isPlaying = false;
+        });
+    } else {
+      state.isPlaying = true;
+      btnPlay.innerHTML = '&#9646;&#9646;';
+    }
   }
 }
 

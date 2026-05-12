@@ -6,7 +6,7 @@
  */
 
 import { state } from './state.js';
-import { formatTime } from './utils.js';
+import { formatTime, parseVersion, groupTracksByVersion } from './utils.js';
 import { fetchAlbums } from './api.js';
 
 const content = document.getElementById('content');
@@ -76,16 +76,28 @@ function trackRowHtml(t, i, { showTags = true } = {}) {
   const isActive = state.currentIndex === i;
   const indicator = isActive ? '▶' : (t.is_changed ? '~' : '·');
 
+  // Parse version from display name
+  const { name: trackName, version } = parseVersion(t.display_name || t.filename);
+
+  // Format date if available
+  const dateStr = t.modified_at ? new Date(t.modified_at * 1000).toLocaleDateString() : '';
+
   return `
     <div class="track-row${isActive ? ' track-active' : ''}" data-index="${i}">
       <span class="track-indicator">${indicator}</span>
       <div class="track-thumb">${thumbHtml(t.album_id)}</div>
       <div class="track-info">
-        <span class="track-name">${t.display_name || t.filename}</span>
+        <span class="track-name">
+          ${trackName}
+          ${version ? `<span class="track-version">${version}</span>` : ''}
+        </span>
         ${subText ? `<span class="track-sub">${subText}</span>` : ''}
       </div>
       <span class="track-tags">${tagHtml}</span>
-      <span class="track-duration">${formatTime(t.duration_seconds)}</span>
+      <span class="track-metadata">
+        <span class="track-duration" title="Duration">${formatTime(t.duration_seconds)}</span>
+        ${dateStr ? `<span class="track-date" title="Modified">${dateStr}</span>` : ''}
+      </span>
     </div>`;
 }
 
@@ -104,7 +116,7 @@ export function renderTrackList(tracks) {
     content.innerHTML = `
       <div class="empty-state">
         <p>no tracks found</p>
-        <p class="text-muted">configure scan_root in config.json and restart</p>
+        <p class="text-muted">configure SCAN_ROOT in .env and restart</p>
       </div>`;
     return;
   }
@@ -147,7 +159,76 @@ export function renderTrackList(tracks) {
       </div>
     </div>`;
 
-  const rows = tracks.map((t, i) => trackRowHtml(t, i)).join('');
+  const rows = (() => {
+    // Group tracks by base name
+    const groups = groupTracksByVersion(tracks);
+
+    return groups.map((group, groupIdx) => {
+      if (!group.hasVersions) {
+        // Single track, no versions — render normally
+        const t = group.tracks[0];
+        return trackRowHtml(t, t.originalIndex);
+      }
+
+      // Multiple versions — render as collapsible group
+      const groupId = `version-group-${groupIdx}`;
+      const { name: trackName } = parseVersion(group.tracks[0].display_name || group.tracks[0].filename);
+
+      // Find the first track's metadata for the group header
+      const firstTrack = group.tracks[0];
+      const subParts = [];
+      if (firstTrack.project_name) subParts.push(firstTrack.project_name);
+      if (firstTrack.album_name)   subParts.push(firstTrack.album_name);
+      const subText = subParts.join('<span class="track-sub-sep">•</span>');
+
+      // Format date for group header
+      const dateStr = firstTrack.modified_at ? new Date(firstTrack.modified_at * 1000).toLocaleDateString() : '';
+
+      const groupHeader = `
+        <div class="track-group-header" data-group-id="${groupId}">
+          <span class="track-group-toggle">▶</span>
+          <div class="track-thumb">${thumbHtml(firstTrack.album_id)}</div>
+          <div class="track-info">
+            <span class="track-name">${trackName}</span>
+            ${subText ? `<span class="track-sub">${subText}</span>` : ''}
+          </div>
+          <span class="track-tags"></span>
+          <span class="track-metadata">
+            <span class="track-duration" title="Duration">${formatTime(firstTrack.duration_seconds)}</span>
+            ${dateStr ? `<span class="track-date" title="Modified">${dateStr}</span>` : ''}
+          </span>
+          <span class="track-group-count">${group.tracks.length} versions</span>
+        </div>`;
+
+      const versionRows = group.tracks.map((t, vIdx) => {
+        const { version } = parseVersion(t.display_name || t.filename);
+        const isActive = state.currentIndex === t.originalIndex;
+        const indicator = isActive ? '▶' : (t.is_changed ? '~' : '·');
+        
+        // Format date for version row
+        const versionDateStr = t.modified_at ? new Date(t.modified_at * 1000).toLocaleDateString() : '';
+
+        return `
+          <div class="track-row track-version-row${isActive ? ' track-active' : ''}" data-index="${t.originalIndex}" data-group-id="${groupId}">
+            <span class="track-indicator">${indicator}</span>
+            <div class="track-thumb">${thumbHtml(t.album_id)}</div>
+            <div class="track-info">
+              <span class="track-name">
+                <span class="track-version-label">${version}</span>
+              </span>
+            </div>
+            <span class="track-tags"></span>
+            <span class="track-metadata">
+              <span class="track-duration" title="Duration">${formatTime(t.duration_seconds)}</span>
+              ${versionDateStr ? `<span class="track-date" title="Modified">${versionDateStr}</span>` : ''}
+            </span>
+          </div>`;
+      }).join('');
+
+      return `${groupHeader}<div class="track-group-versions collapsed" data-group-id="${groupId}">${versionRows}</div>`;
+    }).join('');
+  })();
+
   content.innerHTML = `${toolbar}<div class="track-list">${rows}</div>`;
 
   // Sort toggle dropdown
@@ -159,15 +240,24 @@ export function renderTrackList(tracks) {
     sortPanel.classList.toggle('open');
   });
 
-  // Close on outside click — use a named handler so we can remove it later
-  const closeSortPanel = () => sortPanel.classList.remove('open');
-  document.addEventListener('click', closeSortPanel);
+  document.addEventListener('click', () => sortPanel.classList.remove('open'));
 
   content.querySelectorAll('.sort-panel-item').forEach(item => {
     item.addEventListener('click', (e) => {
       e.stopPropagation();
       handleSort(item.dataset.sort);
-      // handleSort re-renders, so the panel is gone — no need to close it
+    });
+  });
+
+  // Version group collapse/expand
+  content.querySelectorAll('.track-group-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const groupId = header.dataset.groupId;
+      const versions = content.querySelector(`.track-group-versions[data-group-id="${groupId}"]`);
+      const toggle = header.querySelector('.track-group-toggle');
+
+      versions.classList.toggle('collapsed');
+      toggle.textContent = versions.classList.contains('collapsed') ? '▶' : '▼';
     });
   });
 

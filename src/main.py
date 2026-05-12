@@ -321,7 +321,10 @@ async def stream_track(track_id: int):
 
     file_path = Path(row["path"])
     if not file_path.exists():
+        print(f"[ARPvs] WARNING: Audio file not found: {file_path}")
         raise HTTPException(status_code=404, detail="Audio file not found on disk")
+
+    print(f"[ARPvs] Streaming: {file_path}")
 
     def iter_file():
         with open(file_path, "rb") as f:

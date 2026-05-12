@@ -9,7 +9,7 @@ dist/
 build/
 
 # Config (user-specific)
-config.json
+.env
 
 # Data
 data/library.db

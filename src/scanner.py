@@ -12,6 +12,35 @@ import wave
 from pathlib import Path
 
 
+def is_valid_wav_file(filepath: Path) -> bool:
+    """Check if a file is a valid WAV audio file (not Ableton settings).
+
+    Validates the WAV header to distinguish actual audio files from
+    Ableton Live Clip Settings files that use .wav extension.
+
+    Args:
+        filepath: Path to the file to validate.
+
+    Returns:
+        True if the file is a valid WAV audio file, False otherwise.
+    """
+    try:
+        with open(filepath, "rb") as f:
+            # WAV files start with "RIFF" header
+            header = f.read(4)
+            if header != b"RIFF":
+                return False
+            # Skip file size (4 bytes)
+            f.read(4)
+            # Next 4 bytes should be "WAVE"
+            wave_marker = f.read(4)
+            if wave_marker != b"WAVE":
+                return False
+        return True
+    except Exception:
+        return False
+
+
 def scan_for_tracks(root_path: str) -> list[Path]:
     """Find all .wav files inside export-versions/ directories.
 
@@ -28,7 +57,10 @@ def scan_for_tracks(root_path: str) -> list[Path]:
         if not export_dir.is_dir():
             continue
         for wav_file in sorted(export_dir.glob("*.wav")):
-            tracks.append(wav_file)
+            # Validate that the file is actually a WAV audio file
+            # (not Ableton Live Clip Settings or other non-audio files)
+            if is_valid_wav_file(wav_file):
+                tracks.append(wav_file)
 
     return tracks
 
