@@ -260,7 +260,7 @@
 
 .track-group-header {
   display: grid;
-  grid-template-columns: 20px 44px 1fr auto auto auto auto;
+  grid-template-columns: 20px 44px 1fr auto auto auto auto 28px;
   align-items: center;
   gap: 12px;
   padding: 10px 10px;
@@ -350,7 +350,7 @@
 
 .track-row {
   display: grid;
-  grid-template-columns: 20px 44px 1fr auto auto auto auto;
+  grid-template-columns: 20px 44px 1fr auto auto auto auto 28px;
   align-items: center;
   gap: 12px;
   padding: 10px 10px;
@@ -644,4 +644,32 @@
   font-family: var(--font-mono);
   margin-left: 8px;
   letter-spacing: 0.04em;
+}
+
+/* --- Edit button on rows (shown on hover) --- */
+
+.track-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--text-dim);
+  cursor: pointer;
+  opacity: 0;
+  padding: 0;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.track-row:hover .track-edit-btn,
+.track-group-header:hover .track-edit-btn,
+.track-edit-btn:focus-visible {
+  opacity: 1;
+}
+
+.track-edit-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }

@@ -10,13 +10,13 @@ Serves the static UI and provides REST API endpoints for:
 
 import asyncio
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from src.config import load_config, ensure_data_dir
+from src.config import load_config, ensure_data_dir, DATA_DIR
 from src.database import init_db, get_connection
 from src.scanner import (
     scan_for_tracks,
@@ -225,10 +225,17 @@ async def list_albums():
     conn = get_connection()
     try:
         rows = conn.execute("""
-            SELECT a.*,
+            SELECT a.id,
+                   COALESCE(a.display_name_override, a.name) as name,
+                   a.name as name_default,
+                   a.display_name_override,
+                   a.cover_override_path,
+                   a.is_curated,
+                   a.path,
+                   a.discovered_at,
                    COUNT(DISTINCT p.id) as project_count,
-                   COUNT(t.id) as track_count,
-                   COALESCE(SUM(t.duration_seconds), 0) as total_duration
+                   COUNT(t.id) as auto_track_count,
+                   COALESCE(SUM(t.duration_seconds), 0) as auto_duration
             FROM albums a
             LEFT JOIN projects p ON p.album_id = a.id
             LEFT JOIN tracks t ON t.project_id = p.id
@@ -238,7 +245,23 @@ async def list_albums():
         albums = []
         for r in rows:
             album = dict(r)
+            is_curated = bool(album["is_curated"])
+            if is_curated:
+                stats = conn.execute("""
+                    SELECT COUNT(*) as c, COALESCE(SUM(t.duration_seconds), 0) as d
+                    FROM album_tracks at
+                    JOIN tracks t ON t.id = at.track_id
+                    WHERE at.album_id = ?
+                """, (album["id"],)).fetchone()
+                album["track_count"] = stats["c"]
+                album["total_duration"] = stats["d"]
+            else:
+                album["track_count"] = album["auto_track_count"]
+                album["total_duration"] = album["auto_duration"]
+            album["is_curated"] = is_curated
             album["cover_art_url"] = f"/api/albums/{album['id']}/cover"
+            album.pop("auto_track_count", None)
+            album.pop("auto_duration", None)
             albums.append(album)
         return albums
     finally:
@@ -247,14 +270,24 @@ async def list_albums():
 
 @app.get("/api/albums/{album_id}/cover")
 async def get_album_cover(album_id: int):
-    """Serve album cover art. Looks for image files in the album folder."""
+    """Serve album cover art. Prefers user-uploaded override, then looks
+    for image files in the album folder, then falls back to a placeholder."""
     conn = get_connection()
     try:
-        row = conn.execute("SELECT path FROM albums WHERE id = ?", (album_id,)).fetchone()
+        row = conn.execute(
+            "SELECT path, cover_override_path FROM albums WHERE id = ?",
+            (album_id,),
+        ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Album not found")
     finally:
         conn.close()
+
+    # Check user-uploaded override first
+    if row["cover_override_path"]:
+        override = Path(row["cover_override_path"])
+        if override.is_file():
+            return FileResponse(str(override), media_type=_image_media_type(override))
 
     album_path = Path(row["path"])
     if album_path.is_dir():
@@ -310,6 +343,368 @@ def _placeholder_svg(album_id: int):
     return Response(content=svg, media_type="image/svg+xml")
 
 
+# --- Album editing (nondestructive overrides) ---
+
+
+@app.patch("/api/albums/{album_id}")
+async def update_album(album_id: int, payload: dict):
+    """Update editable fields on an album.
+
+    Accepted fields:
+      - display_name (str | null): override the album label. null/empty resets.
+    """
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM albums WHERE id = ?", (album_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Album not found")
+
+        if "display_name" in payload:
+            new_name = payload.get("display_name")
+            if new_name is not None:
+                new_name = new_name.strip() or None
+            conn.execute(
+                "UPDATE albums SET display_name_override = ? WHERE id = ?",
+                (new_name, album_id),
+            )
+            conn.commit()
+
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+ALLOWED_COVER_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
+MAX_COVER_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+@app.post("/api/albums/{album_id}/cover")
+async def upload_album_cover(album_id: int, file: UploadFile = File(...)):
+    """Upload a cover image override for an album. Stored under data/cover_art/."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT id, cover_override_path FROM albums WHERE id = ?", (album_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Album not found")
+    finally:
+        conn.close()
+
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in ALLOWED_COVER_EXTS:
+        raise HTTPException(status_code=400, detail=f"Unsupported image type: {ext or 'unknown'}")
+
+    # Read in chunks with a size limit to avoid unbounded memory use
+    cover_dir = DATA_DIR / "cover_art"
+    cover_dir.mkdir(parents=True, exist_ok=True)
+    dest = cover_dir / f"album_{album_id}{ext}"
+
+    total = 0
+    with open(dest, "wb") as f:
+        while True:
+            chunk = await file.read(65536)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > MAX_COVER_SIZE_BYTES:
+                f.close()
+                dest.unlink(missing_ok=True)
+                raise HTTPException(status_code=413, detail="Image too large (max 10 MB)")
+            f.write(chunk)
+
+    # Clean up a prior override with a different extension
+    prior = row["cover_override_path"]
+    if prior and prior != str(dest):
+        prior_path = Path(prior)
+        if prior_path.is_file():
+            prior_path.unlink(missing_ok=True)
+
+    conn = get_connection()
+    try:
+        conn.execute(
+            "UPDATE albums SET cover_override_path = ? WHERE id = ?",
+            (str(dest), album_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {"ok": True, "cover_url": f"/api/albums/{album_id}/cover"}
+
+
+@app.delete("/api/albums/{album_id}/cover")
+async def delete_album_cover(album_id: int):
+    """Remove a user-uploaded cover override, reverting to folder-detected art."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT cover_override_path FROM albums WHERE id = ?", (album_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Album not found")
+
+        if row["cover_override_path"]:
+            p = Path(row["cover_override_path"])
+            if p.is_file():
+                p.unlink(missing_ok=True)
+
+        conn.execute(
+            "UPDATE albums SET cover_override_path = NULL WHERE id = ?", (album_id,)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@app.get("/api/albums/{album_id}/tracks")
+async def list_album_tracks(album_id: int):
+    """List the tracks for an album.
+
+    If the album is marked curated, return the explicit curated list in
+    sort_order. Otherwise, return all tracks under the album's projects
+    (auto mode). Always includes an `auto_tracks` list with every
+    candidate (for the curation picker), and an ordered `curated_ids`.
+
+    Per-album display_name overrides (from album_tracks.display_name)
+    take precedence over the global track display name.
+    """
+    conn = get_connection()
+    try:
+        album_row = conn.execute(
+            "SELECT id, is_curated FROM albums WHERE id = ?", (album_id,)
+        ).fetchone()
+        if not album_row:
+            raise HTTPException(status_code=404, detail="Album not found")
+        is_curated = bool(album_row["is_curated"])
+
+        # Every track under any project of this album — candidates for curation
+        auto_rows = conn.execute("""
+            SELECT t.*,
+                   p.name as project_name, p.album_id as album_id, a.name as album_name
+            FROM tracks t
+            JOIN projects p ON p.id = t.project_id
+            LEFT JOIN albums a ON a.id = p.album_id
+            WHERE p.album_id = ?
+            ORDER BY t.filename
+        """, (album_id,)).fetchall()
+
+        # Per-album name + order map
+        at_rows = conn.execute(
+            "SELECT track_id, sort_order, display_name FROM album_tracks WHERE album_id = ?",
+            (album_id,),
+        ).fetchall()
+        at_map = {r["track_id"]: {"sort_order": r["sort_order"], "display_name": r["display_name"]} for r in at_rows}
+        curated_ids = sorted(
+            (r["track_id"] for r in at_rows),
+            key=lambda tid: at_map[tid]["sort_order"],
+        ) if is_curated else []
+
+        auto_tracks = []
+        for r in auto_rows:
+            t = _apply_display_name(dict(r))
+            if t["id"] in at_map and at_map[t["id"]]["display_name"]:
+                t["display_name"] = at_map[t["id"]]["display_name"]
+            auto_tracks.append(t)
+        auto_by_id = {t["id"]: t for t in auto_tracks}
+
+        if is_curated:
+            missing_ids = [tid for tid in curated_ids if tid not in auto_by_id]
+            if missing_ids:
+                placeholders = ",".join("?" * len(missing_ids))
+                extra_rows = conn.execute(f"""
+                    SELECT t.*,
+                           p.name as project_name, p.album_id as album_id, a.name as album_name
+                    FROM tracks t
+                    JOIN projects p ON p.id = t.project_id
+                    LEFT JOIN albums a ON a.id = p.album_id
+                    WHERE t.id IN ({placeholders})
+                """, missing_ids).fetchall()
+                for r in extra_rows:
+                    t = _apply_display_name(dict(r))
+                    if t["id"] in at_map and at_map[t["id"]]["display_name"]:
+                        t["display_name"] = at_map[t["id"]]["display_name"]
+                    auto_by_id[t["id"]] = t
+
+            tracks = [auto_by_id[tid] for tid in curated_ids if tid in auto_by_id]
+        else:
+            tracks = auto_tracks
+
+        return {
+            "is_curated": is_curated,
+            "tracks": tracks,
+            "auto_tracks": auto_tracks,
+            "curated_ids": curated_ids,
+        }
+    finally:
+        conn.close()
+
+
+@app.put("/api/albums/{album_id}/tracks")
+async def set_album_tracks(album_id: int, payload: dict):
+    """Replace the curated track list for an album.
+
+    Payload:
+      - track_ids: list[int] — ordered list of track IDs. An empty list
+        clears curation and reverts to auto mode.
+
+    Flips albums.is_curated to 1 when track_ids is non-empty, 0 otherwise.
+    Preserves any per-album display_name values across the replacement.
+    """
+    ids = payload.get("track_ids")
+    if not isinstance(ids, list) or not all(isinstance(i, int) for i in ids):
+        raise HTTPException(status_code=400, detail="track_ids must be a list of integers")
+
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM albums WHERE id = ?", (album_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Album not found")
+
+        # Preserve any per-album display_name overrides across re-curation
+        existing = {
+            r["track_id"]: r["display_name"]
+            for r in conn.execute(
+                "SELECT track_id, display_name FROM album_tracks WHERE album_id = ?",
+                (album_id,),
+            )
+        }
+
+        conn.execute("DELETE FROM album_tracks WHERE album_id = ?", (album_id,))
+        if ids:
+            for order, track_id in enumerate(ids):
+                conn.execute(
+                    "INSERT OR IGNORE INTO album_tracks (album_id, track_id, sort_order, display_name) VALUES (?, ?, ?, ?)",
+                    (album_id, track_id, order, existing.get(track_id)),
+                )
+            conn.execute("UPDATE albums SET is_curated = 1 WHERE id = ?", (album_id,))
+        else:
+            # Reverting to auto mode — re-seed album_tracks with the preserved
+            # per-album display_name values so renames survive the reset.
+            auto_ids = [
+                r["id"]
+                for r in conn.execute(
+                    """
+                    SELECT t.id FROM tracks t
+                    JOIN projects p ON p.id = t.project_id
+                    WHERE p.album_id = ?
+                    """,
+                    (album_id,),
+                )
+            ]
+            for order, tid in enumerate(auto_ids):
+                name = existing.get(tid)
+                if name is None:
+                    continue
+                conn.execute(
+                    "INSERT INTO album_tracks (album_id, track_id, sort_order, display_name) VALUES (?, ?, ?, ?)",
+                    (album_id, tid, order, name),
+                )
+            conn.execute("UPDATE albums SET is_curated = 0 WHERE id = ?", (album_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {"ok": True, "is_curated": len(ids) > 0, "count": len(ids)}
+
+
+@app.patch("/api/albums/{album_id}/tracks/{track_id}")
+async def update_album_track(album_id: int, track_id: int, payload: dict):
+    """Rename a track *within* a specific album — nondestructive and
+    scoped. Does not affect the global track display name or other
+    albums. Writes to album_tracks.display_name.
+
+    Accepted fields:
+      - display_name (str | null): per-album label override. null/empty clears.
+      - apply_to_versions (bool): also rename sibling versions within this album.
+    """
+    conn = get_connection()
+    try:
+        album = conn.execute(
+            "SELECT id, is_curated FROM albums WHERE id = ?", (album_id,)
+        ).fetchone()
+        if not album:
+            raise HTTPException(status_code=404, detail="Album not found")
+        track = conn.execute(
+            "SELECT id, project_id, filename FROM tracks WHERE id = ?",
+            (track_id,),
+        ).fetchone()
+        if not track:
+            raise HTTPException(status_code=404, detail="Track not found")
+
+        new_name = payload.get("display_name")
+        if new_name is not None:
+            new_name = new_name.strip() or None
+
+        apply_to_versions = bool(payload.get("apply_to_versions"))
+        ids_to_update = [track_id]
+        if apply_to_versions and new_name is not None:
+            ids_to_update = _sibling_version_ids(conn, track)
+
+        # Scope to tracks that belong to this album
+        is_curated = bool(album["is_curated"])
+        if is_curated:
+            scoped_ids = {
+                r["track_id"]
+                for r in conn.execute(
+                    "SELECT track_id FROM album_tracks WHERE album_id = ?",
+                    (album_id,),
+                )
+            }
+        else:
+            scoped_ids = {
+                r["id"]
+                for r in conn.execute(
+                    """
+                    SELECT t.id FROM tracks t
+                    JOIN projects p ON p.id = t.project_id
+                    WHERE p.album_id = ?
+                    """,
+                    (album_id,),
+                )
+            }
+
+        final_ids = [i for i in ids_to_update if i in scoped_ids] or [track_id]
+
+        # Upsert album_tracks row for each. In auto mode this does not
+        # flip is_curated — we only add minimal rows to hold the name.
+        for tid in final_ids:
+            existing = conn.execute(
+                "SELECT id FROM album_tracks WHERE album_id = ? AND track_id = ?",
+                (album_id, tid),
+            ).fetchone()
+            if existing:
+                if new_name is None:
+                    # If the row was only there to hold a name (auto mode
+                    # sentinel), delete it so we don't dirty the table.
+                    if not is_curated:
+                        conn.execute(
+                            "DELETE FROM album_tracks WHERE id = ?",
+                            (existing["id"],),
+                        )
+                    else:
+                        conn.execute(
+                            "UPDATE album_tracks SET display_name = NULL WHERE id = ?",
+                            (existing["id"],),
+                        )
+                else:
+                    conn.execute(
+                        "UPDATE album_tracks SET display_name = ? WHERE id = ?",
+                        (new_name, existing["id"]),
+                    )
+            elif new_name is not None:
+                conn.execute(
+                    "INSERT INTO album_tracks (album_id, track_id, sort_order, display_name) VALUES (?, ?, 0, ?)",
+                    (album_id, tid, new_name),
+                )
+        conn.commit()
+
+        return {"ok": True, "updated_ids": final_ids}
+    finally:
+        conn.close()
+
+
 @app.get("/api/projects")
 async def list_projects():
     """List all detected projects."""
@@ -348,13 +743,14 @@ async def list_tracks():
     conn = get_connection()
     try:
         rows = conn.execute("""
-            SELECT t.*, p.name as project_name, p.album_id as album_id, a.name as album_name
+            SELECT t.*,
+                   p.name as project_name, p.album_id as album_id, a.name as album_name
             FROM tracks t
             JOIN projects p ON p.id = t.project_id
             LEFT JOIN albums a ON a.id = p.album_id
             ORDER BY t.filename
         """).fetchall()
-        return [dict(r) for r in rows]
+        return [_apply_display_name(dict(r)) for r in rows]
     finally:
         conn.close()
 
@@ -365,7 +761,8 @@ async def get_track(track_id: int):
     conn = get_connection()
     try:
         row = conn.execute("""
-            SELECT t.*, p.name as project_name, p.album_id as album_id, a.name as album_name
+            SELECT t.*,
+                   p.name as project_name, p.album_id as album_id, a.name as album_name
             FROM tracks t
             JOIN projects p ON p.id = t.project_id
             LEFT JOIN albums a ON a.id = p.album_id
@@ -373,9 +770,100 @@ async def get_track(track_id: int):
         """, (track_id,)).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Track not found")
-        return dict(row)
+        return _apply_display_name(dict(row))
     finally:
         conn.close()
+
+
+def _apply_display_name(track: dict) -> dict:
+    """Move display_name_override → display_name, and preserve the original
+    as display_name_default. Resolving this in Python avoids fragile
+    duplicate-alias behavior in the SQL SELECT."""
+    track["display_name_default"] = track.get("display_name")
+    override = track.get("display_name_override")
+    if override:
+        track["display_name"] = override
+    return track
+
+
+@app.patch("/api/tracks/{track_id}")
+async def update_track(track_id: int, payload: dict):
+    """Update editable fields on a track. Nondestructive — never touches
+    the file on disk or the scanner-derived `display_name` default.
+
+    Accepted fields in payload:
+      - display_name (str | null): override the display label. null/empty resets.
+      - apply_to_versions (bool): if true and display_name is provided,
+        also rename all sibling versions in the same project whose
+        base name matches (ignoring V-suffix).
+    """
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT id, project_id, filename, display_name FROM tracks WHERE id = ?",
+            (track_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Track not found")
+
+        if "display_name" in payload:
+            new_name = payload.get("display_name")
+            # Normalize empty string/whitespace to NULL (reset to default)
+            if new_name is not None:
+                new_name = new_name.strip() or None
+
+            apply_to_versions = bool(payload.get("apply_to_versions"))
+            ids_to_update = [track_id]
+
+            if apply_to_versions and new_name is not None:
+                ids_to_update = _sibling_version_ids(conn, row)
+
+            placeholders = ",".join("?" * len(ids_to_update))
+            conn.execute(
+                f"UPDATE tracks SET display_name_override = ? WHERE id IN ({placeholders})",
+                (new_name, *ids_to_update),
+            )
+            conn.commit()
+
+            updated = conn.execute(f"""
+                SELECT t.*,
+                       p.name as project_name, p.album_id as album_id, a.name as album_name
+                FROM tracks t
+                JOIN projects p ON p.id = t.project_id
+                LEFT JOIN albums a ON a.id = p.album_id
+                WHERE t.id IN ({placeholders})
+            """, ids_to_update).fetchall()
+            return {"updated": [_apply_display_name(dict(r)) for r in updated]}
+
+        return {"updated": []}
+    finally:
+        conn.close()
+
+
+def _sibling_version_ids(conn, track_row) -> list[int]:
+    """Return the ids of the given track and all sibling versions in the
+    same project whose filename shares the same base name (ignoring a
+    trailing _v<n> / -v<n> / _final suffix)."""
+    import re
+
+    project_id = track_row["project_id"]
+    stem = Path(track_row["filename"]).stem
+    # Strip trailing version-like suffix from the stem
+    base = re.sub(r"[_-]v\d+(?:[_-]?final)?$", "", stem, flags=re.IGNORECASE)
+    base = re.sub(r"[_-]final$", "", base, flags=re.IGNORECASE)
+
+    rows = conn.execute(
+        "SELECT id, filename FROM tracks WHERE project_id = ?",
+        (project_id,),
+    ).fetchall()
+    ids = []
+    for r in rows:
+        s = Path(r["filename"]).stem
+        s_base = re.sub(r"[_-]v\d+(?:[_-]?final)?$", "", s, flags=re.IGNORECASE)
+        s_base = re.sub(r"[_-]final$", "", s_base, flags=re.IGNORECASE)
+        if s_base.lower() == base.lower():
+            ids.append(r["id"])
+    return ids or [track_row["id"]]
 
 
 @app.get("/api/stream/{track_id}")
@@ -468,17 +956,19 @@ async def search_tracks(q: str = ""):
         query = f"%{q}%"
         limit = _config.get("search_result_limit", 50)
         rows = conn.execute("""
-            SELECT t.*, p.name as project_name, p.album_id as album_id, a.name as album_name
+            SELECT t.*,
+                   p.name as project_name, p.album_id as album_id, a.name as album_name
             FROM tracks t
             JOIN projects p ON p.id = t.project_id
             LEFT JOIN albums a ON a.id = p.album_id
             WHERE t.filename LIKE ?
                OR t.display_name LIKE ?
+               OR t.display_name_override LIKE ?
                OR p.name LIKE ?
             ORDER BY t.filename
             LIMIT ?
-        """, (query, query, query, limit)).fetchall()
-        return [dict(r) for r in rows]
+        """, (query, query, query, query, limit)).fetchall()
+        return [_apply_display_name(dict(r)) for r in rows]
     finally:
         conn.close()
 

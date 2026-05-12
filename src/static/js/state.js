@@ -14,7 +14,12 @@ export const state = {
   sortAsc: false,
   trackTags: {},      // { [trackId]: [{id, name, color}] }
   librarySummary: null, // { total_tracks, total_projects, total_albums, total_unexported, total_duration_seconds, total_file_size_bytes }
-  
+
+  // Current view — used to refresh in place after edits.
+  //   type: 'all' | 'albums' | 'album-expanded' | 'projects' | 'unexported' | 'favorites' | 'search'
+  //   params: view-specific context (e.g. { albumId } for album-expanded, { query } for search)
+  currentView: { type: 'all', params: {} },
+
   // Playback modes
   shuffle: false,     // Shuffle playback
   loopMode: 'off',    // 'off' | 'one' | 'all'

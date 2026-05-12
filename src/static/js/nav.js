@@ -11,7 +11,6 @@ import {
   renderTrackList,
   renderAlbums,
   renderProjects,
-  renderCollections,
   renderFavorites,
   renderUnexportedProjects,
 } from './views.js';
@@ -31,6 +30,7 @@ sidebarLinks.forEach(link => {
 
     switch (link.dataset.view) {
       case 'all': {
+        state.currentView = { type: 'all', params: {} };
         const tracks = await fetchTracks();
         state.tracks = tracks;
         renderTrackList(tracks);
@@ -51,9 +51,6 @@ sidebarLinks.forEach(link => {
         renderUnexportedProjects(projects);
         break;
       }
-      case 'collections':
-        renderCollections();
-        break;
       case 'favorites':
         renderFavorites();
         break;
@@ -71,10 +68,12 @@ searchInput.addEventListener('input', () => {
 
   searchTimeout = setTimeout(async () => {
     if (q.length > 0) {
+      state.currentView = { type: 'search', params: { query: q } };
       const results = await searchTracks(q);
       state.tracks = results;
       renderTrackList(results);
     } else {
+      state.currentView = { type: 'all', params: {} };
       const all = await fetchTracks();
       state.tracks = all;
       renderTrackList(all);

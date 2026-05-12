@@ -494,3 +494,34 @@
   text-overflow: ellipsis;
   font-family: var(--font-mono);
 }
+
+/* --- Edit button on album cards + curated tag --- */
+
+.album-btn-edit svg {
+  width: 18px;
+  height: 18px;
+}
+
+.album-curated-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.album-expanded-header {
+  position: relative;
+}
+
+.album-expanded-edit {
+  position: absolute;
+  top: 0;
+  right: 0;
+}

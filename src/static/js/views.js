@@ -7,9 +7,10 @@
 
 import { state } from './state.js';
 import { formatTime, formatDurationLong, formatFileSize, parseVersion, groupTracksByVersion } from './utils.js';
-import { fetchAlbums, fetchTracks, fetchLibrarySummary } from './api.js';
+import { fetchAlbums, fetchTracks, fetchLibrarySummary, fetchAlbumTracks } from './api.js';
 import { createIcon } from './icons.js';
 import { renderDitherFrame } from './dither-bg.js';
+import { openEditTrack } from './edit-track.js';
 
 const content = document.getElementById('content');
 
@@ -159,7 +160,7 @@ function trackRowHtml(t, i, { showTags = true } = {}) {
   const fileSizeStr = t.file_size_bytes ? formatFileSize(t.file_size_bytes) : '';
 
   return `
-    <div class="track-row${isActive ? ' track-active' : ''}" data-index="${i}">
+    <div class="track-row${isActive ? ' track-active' : ''}" data-index="${i}" data-track-id="${t.id}">
       <span class="track-indicator">${indicator}</span>
       <div class="track-thumb">${thumbHtml(t.album_id)}</div>
       <div class="track-info">
@@ -177,13 +178,27 @@ function trackRowHtml(t, i, { showTags = true } = {}) {
         <span class="track-duration" title="Duration">${formatTime(t.duration_seconds)}</span>
         ${dateStr ? `<span class="track-date" title="Modified">${dateStr}</span>` : ''}
       </span>
+      <button class="track-edit-btn" data-track-id="${t.id}" title="Edit name">${lucideIcon('pencil', 13)}</button>
     </div>`;
 }
 
 function bindTrackRows() {
   content.querySelectorAll('.track-row').forEach(row => {
-    row.addEventListener('click', () => {
+    row.addEventListener('click', (e) => {
+      // Ignore clicks that originated on the edit button
+      if (e.target.closest('.track-edit-btn')) return;
       _playTrack?.(parseInt(row.dataset.index, 10));
+    });
+  });
+  bindEditButtons();
+}
+
+function bindEditButtons() {
+  content.querySelectorAll('.track-edit-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const trackId = parseInt(btn.dataset.trackId, 10);
+      openEditTrack(trackId);
     });
   });
 }
@@ -211,7 +226,7 @@ function renderGroupedTracksHtml(tracks, { showTags = true } = {}) {
     const dateStr = firstTrack.modified_at ? new Date(firstTrack.modified_at * 1000).toLocaleDateString() : '';
 
     const groupHeader = `
-      <div class="track-group-header" data-group-id="${groupId}">
+      <div class="track-group-header" data-group-id="${groupId}" data-track-id="${firstTrack.id}">
         <span class="track-group-toggle">${lucideIcon('chevron-right', 14)}</span>
         <div class="track-thumb">${thumbHtml(firstTrack.album_id)}</div>
         <div class="track-info">
@@ -229,6 +244,7 @@ function renderGroupedTracksHtml(tracks, { showTags = true } = {}) {
           <span class="track-duration" title="Duration">${formatTime(firstTrack.duration_seconds)}</span>
           ${dateStr ? `<span class="track-date" title="Modified">${dateStr}</span>` : ''}
         </span>
+        <button class="track-edit-btn" data-track-id="${firstTrack.id}" title="Edit name">${lucideIcon('pencil', 13)}</button>
       </div>`;
 
     const versionRows = group.tracks.map((t, idx) => {
@@ -244,7 +260,7 @@ function renderGroupedTracksHtml(tracks, { showTags = true } = {}) {
       const positionLabel = `${idx + 1}/${group.tracks.length}`;
 
       return `
-        <div class="track-row track-version-row${isActive ? ' track-active' : ''}" data-index="${t.originalIndex}" data-group-id="${groupId}">
+        <div class="track-row track-version-row${isActive ? ' track-active' : ''}" data-index="${t.originalIndex}" data-track-id="${t.id}" data-group-id="${groupId}">
           <span class="track-indicator">${indicator}</span>
           <div class="track-thumb">${thumbHtml(t.album_id)}</div>
           <div class="track-info">
@@ -261,6 +277,7 @@ function renderGroupedTracksHtml(tracks, { showTags = true } = {}) {
             <span class="track-duration" title="Duration">${formatTime(t.duration_seconds)}</span>
             ${versionDateStr ? `<span class="track-date" title="Modified">${versionDateStr}</span>` : ''}
           </span>
+          <button class="track-edit-btn" data-track-id="${t.id}" title="Edit name">${lucideIcon('pencil', 13)}</button>
         </div>`;
     }).join('');
 
@@ -271,7 +288,8 @@ function renderGroupedTracksHtml(tracks, { showTags = true } = {}) {
 // Wire the chevron toggle on any rendered track-group headers.
 function bindGroupHeaders() {
   content.querySelectorAll('.track-group-header').forEach(header => {
-    header.addEventListener('click', () => {
+    header.addEventListener('click', (e) => {
+      if (e.target.closest('.track-edit-btn')) return;
       const groupId = header.dataset.groupId;
       const versions = content.querySelector(`.track-group-versions[data-group-id="${groupId}"]`);
       const toggle = header.querySelector('.track-group-toggle');
@@ -324,6 +342,11 @@ function groupTracksByTime(tracks) {
 }
 
 export function renderTrackList(tracks) {
+  // Only stamp currentView to 'all' if no specific sub-view has been set.
+  // Search and other consumers set currentView themselves before calling.
+  if (!state.currentView || !['search', 'all'].includes(state.currentView.type)) {
+    state.currentView = { type: 'all', params: {} };
+  }
   if (!tracks.length) {
     content.innerHTML = `
       <div class="empty-state">
@@ -487,7 +510,76 @@ export function renderTrackList(tracks) {
 
 // --- Albums grid ---
 
+// Incremented whenever an album cover is uploaded or removed, appended
+// to cover URLs as a cache-buster so the browser actually fetches the
+// new image.
+let _coverCacheBust = 0;
+function coverUrl(album) {
+  const base = album.cover_art_url || `/api/albums/${album.id}/cover`;
+  return _coverCacheBust ? `${base}?v=${_coverCacheBust}` : base;
+}
+export function bumpCoverCache() {
+  _coverCacheBust = Date.now();
+}
+
+/**
+ * Re-render whichever view is currently active, fetching fresh data.
+ * Preserves the user's location (e.g. stays on the album-expanded view
+ * instead of jumping back to the all-tracks list).
+ */
+export async function refreshCurrentView() {
+  const cv = state.currentView || { type: 'all', params: {} };
+  switch (cv.type) {
+    case 'albums': {
+      const albums = await fetchAlbums();
+      renderAlbums(albums);
+      return;
+    }
+    case 'album-expanded': {
+      const { albumId, albumName } = cv.params || {};
+      if (albumId == null) return;
+      const data = await fetchAlbumTracks(albumId);
+      renderAlbumExpanded(albumName, `/api/albums/${albumId}/cover`, data.tracks, { isCurated: data.is_curated, albumId });
+      return;
+    }
+    case 'search': {
+      const q = (cv.params && cv.params.query) || '';
+      if (q) {
+        const { searchTracks } = await import('./api.js');
+        const results = await searchTracks(q);
+        state.tracks = results;
+        renderTrackList(results);
+      } else {
+        const all = await fetchTracks();
+        state.tracks = sortTracks(all);
+        renderTrackList(state.tracks);
+      }
+      return;
+    }
+    case 'projects': {
+      const { fetchProjects } = await import('./api.js');
+      renderProjects(await fetchProjects());
+      return;
+    }
+    case 'unexported': {
+      const { fetchUnexportedProjects } = await import('./api.js');
+      renderUnexportedProjects(await fetchUnexportedProjects());
+      return;
+    }
+    case 'favorites':
+      renderFavorites();
+      return;
+    case 'all':
+    default: {
+      const tracks = await fetchTracks();
+      state.tracks = sortTracks(tracks);
+      renderTrackList(state.tracks);
+    }
+  }
+}
+
 export function renderAlbums(albums) {
+  state.currentView = { type: 'albums', params: {} };
   if (!albums.length) {
     content.innerHTML = `<div class="empty-state"><p>no albums found</p></div>`;
     return;
@@ -501,7 +593,7 @@ export function renderAlbums(albums) {
     <div class="album-card" data-album-id="${a.id}" data-album-name="${a.name}">
       <div class="album-art">
         <canvas class="album-dither-canvas" data-seed="${a.id}"></canvas>
-        <img src="${a.cover_art_url}" alt="${a.name}" loading="lazy" crossorigin="anonymous">
+        <img src="${coverUrl(a)}" alt="${a.name}" loading="lazy" crossorigin="anonymous">
         <div class="album-vinyl">
           <div class="vinyl-groove"></div>
           <div class="vinyl-groove vinyl-groove-2"></div>
@@ -510,7 +602,7 @@ export function renderAlbums(albums) {
         </div>
       </div>
       <div class="album-info">
-        <div class="album-name">${a.name}</div>
+        <div class="album-name">${a.name}${a.is_curated ? ` <span class="album-curated-tag" title="Curated track list">curated</span>` : ''}</div>
         <div class="album-meta">
           <span>${trackLabel}</span>
           <span class="album-meta-sep">·</span>
@@ -518,6 +610,7 @@ export function renderAlbums(albums) {
         </div>
       </div>
       <div class="album-controls">
+        <button class="album-btn album-btn-edit" title="Edit album" data-album-id="${a.id}">${lucideIcon('pencil', 18)}</button>
         <button class="album-btn album-btn-play" title="Play album">${lucideIcon('play-circle', 22)}</button>
         <button class="album-btn album-btn-info" title="View details">${lucideIcon('chevron-right', 22)}</button>
       </div>
@@ -583,39 +676,41 @@ export function renderAlbums(albums) {
 
     playBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
+      const albumId = parseInt(card.dataset.albumId, 10);
       const albumName = card.dataset.albumName;
 
-      const allTracks = await fetchTracks();
-      const albumTracks = allTracks.filter(t => t.album_name === albumName);
-
+      const data = await fetchAlbumTracks(albumId);
       const { playAlbum } = await import('./player.js');
-      playAlbum(albumTracks, albumName);
+      playAlbum(data.tracks, albumName);
     });
 
     infoBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const albumName = card.dataset.albumName;
-      const albumId   = card.dataset.albumId;
-      const coverUrl  = `/api/albums/${albumId}/cover`;
-
-      const allTracks = await fetchTracks();
-      const albumTracks = allTracks.filter(t => t.album_name === albumName);
-
-      renderAlbumExpanded(albumName, coverUrl, albumTracks);
+      await openAlbumView(card);
     });
+
+    const editBtn = card.querySelector('.album-btn-edit');
+    if (editBtn) {
+      editBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const albumId = parseInt(card.dataset.albumId, 10);
+        const { openEditAlbum } = await import('./edit-album.js');
+        openEditAlbum(albumId);
+      });
+    }
 
     // Clicking the card itself opens expanded view
-    card.addEventListener('click', async () => {
-      const albumName = card.dataset.albumName;
-      const albumId   = card.dataset.albumId;
-      const coverUrl  = `/api/albums/${albumId}/cover`;
-
-      const allTracks = await fetchTracks();
-      const albumTracks = allTracks.filter(t => t.album_name === albumName);
-
-      renderAlbumExpanded(albumName, coverUrl, albumTracks);
-    });
+    card.addEventListener('click', () => openAlbumView(card));
   });
+}
+
+async function openAlbumView(card) {
+  const albumId = parseInt(card.dataset.albumId, 10);
+  const albumName = card.dataset.albumName;
+  const cover = `/api/albums/${albumId}/cover`;
+
+  const data = await fetchAlbumTracks(albumId);
+  renderAlbumExpanded(albumName, cover, data.tracks, { isCurated: data.is_curated, albumId });
 }
 
 /**
@@ -657,13 +752,19 @@ function extractDominantColor(img) {
 
 // --- Album expanded view ---
 
-export function renderAlbumExpanded(albumName, coverUrl, tracks) {
+export function renderAlbumExpanded(albumName, coverUrl, tracks, opts = {}) {
   state.tracks = tracks;
+  const { isCurated = false, albumId = null } = opts;
+  state.currentView = { type: 'album-expanded', params: { albumId, albumName } };
   const totalDuration = tracks.reduce((sum, t) => sum + (t.duration_seconds || 0), 0);
 
   // Add originalIndex to tracks for grouping
   const tracksWithIndex = tracks.map((t, i) => ({ ...t, originalIndex: i }));
   const rows = renderGroupedTracksHtml(tracksWithIndex, { showTags: false });
+
+  const editBtn = albumId != null
+    ? `<button class="icon-btn album-expanded-edit" id="album-expanded-edit" title="Edit album" data-tooltip="Edit album">${lucideIcon('pencil', 15)}</button>`
+    : '';
 
   content.innerHTML = `
     <div class="album-expanded">
@@ -673,11 +774,15 @@ export function renderAlbumExpanded(albumName, coverUrl, tracks) {
           <img src="${coverUrl}" alt="${albumName}">
         </div>
         <div class="album-expanded-info">
-          <div class="album-expanded-name">${albumName}</div>
+          <div class="album-expanded-name">
+            ${albumName}
+            ${isCurated ? ` <span class="album-curated-tag" title="Curated track list">curated</span>` : ''}
+          </div>
           <div class="album-expanded-meta">
             ${tracks.length} track${tracks.length !== 1 ? 's' : ''} · ${formatTime(totalDuration)}
           </div>
         </div>
+        ${editBtn}
       </div>
       <div class="track-list">${rows}</div>
     </div>`;
@@ -687,6 +792,14 @@ export function renderAlbumExpanded(albumName, coverUrl, tracks) {
     renderAlbums(albums);
   });
 
+  const expandedEditBtn = document.getElementById('album-expanded-edit');
+  if (expandedEditBtn) {
+    expandedEditBtn.addEventListener('click', async () => {
+      const { openEditAlbum } = await import('./edit-album.js');
+      openEditAlbum(albumId);
+    });
+  }
+
   bindGroupHeaders();
   bindTrackRows();
 }
@@ -694,6 +807,7 @@ export function renderAlbumExpanded(albumName, coverUrl, tracks) {
 // --- Projects grid ---
 
 export function renderProjects(projects) {
+  state.currentView = { type: 'projects', params: {} };
   if (!projects.length) {
     content.innerHTML = `<div class="empty-state"><p>no projects found</p></div>`;
     return;
@@ -721,15 +835,8 @@ export function renderProjects(projects) {
 
 // --- Stub views ---
 
-export function renderCollections() {
-  content.innerHTML = `
-    <div class="empty-state">
-      <p>no collections yet</p>
-      <p class="text-muted">collections coming soon</p>
-    </div>`;
-}
-
 export function renderFavorites() {
+  state.currentView = { type: 'favorites', params: {} };
   content.innerHTML = `
     <div class="empty-state">
       <p>no favorites yet</p>
@@ -738,6 +845,7 @@ export function renderFavorites() {
 }
 
 export function renderUnexportedProjects(projects) {
+  state.currentView = { type: 'unexported', params: {} };
   if (!projects.length) {
     content.innerHTML = `<div class="empty-state"><p>no unexported projects</p></div>`;
     return;

@@ -7,12 +7,14 @@
  */
 
 import { state } from './state.js';
-import { fetchTracks, fetchTrackTags, fetchLibrarySummary } from './api.js';
-import { sortTracks, renderTrackList, setPlayTrack } from './views.js';
+import { fetchTracks, fetchTrackTags, fetchLibrarySummary, fetchAlbums } from './api.js';
+import { sortTracks, renderTrackList, renderAlbums, setPlayTrack, bumpCoverCache, refreshCurrentView } from './views.js';
 import { playTrack, setOnTrackChange, toggleShuffle, toggleLoop } from './player.js';
 import { initializeTheme, setupColorPicker, setupPaletteMode, setupScrollShadow } from './theme.js';
 import { initSplash } from './splash.js';
 import { initializeIcons, createIcon } from './icons.js';
+import { onTrackSaved } from './edit-track.js';
+import { onAlbumSaved } from './edit-album.js';
 
 // --- App constants ---
 const SPLASH_DURATION_MS = 3000;
@@ -33,6 +35,19 @@ setTimeout(() => initSplash(SPLASH_DURATION_MS), SPLASH_INIT_DELAY_MS);
 //   player needs to re-render list → inject renderTrackList
 setPlayTrack(playTrack);
 setOnTrackChange(() => renderTrackList(state.tracks));
+
+// After a track edit, refetch and re-render the *current* view so we
+// stay wherever the user was (all tracks, album-expanded, search, etc.).
+onTrackSaved(async () => {
+  await refreshCurrentView();
+});
+
+// After an album edit, refresh in place and bump the cover cache so
+// fresh uploads show up.
+onAlbumSaved(async ({ coverChanged } = {}) => {
+  if (coverChanged) bumpCoverCache();
+  await refreshCurrentView();
+});
 
 // nav.js registers its own event listeners on import — just pull it in.
 import './nav.js';

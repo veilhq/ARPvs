@@ -1,0 +1,450 @@
+/* Modal — Shared overlay and dialog styling */
+
+.edit-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.edit-modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-heading);
+}
+
+.edit-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.edit-modal-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.edit-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.edit-modal-close:hover {
+  color: var(--accent);
+}
+
+.edit-modal-body {
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.edit-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.edit-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Fields */
+
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.edit-field label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.edit-field input[type="text"] {
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  color: var(--text-bright);
+  font-family: var(--font-heading);
+  font-size: 14px;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.edit-field input[type="text"]:focus {
+  border-color: var(--accent);
+}
+
+.edit-field-hint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.edit-field-hint code {
+  background: var(--bg);
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.edit-field-hint-muted {
+  opacity: 0.7;
+}
+
+.edit-field-checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.edit-field-checkbox input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.edit-field-checkbox input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.edit-field-checkbox input[type="checkbox"]:checked::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: var(--bg);
+}
+
+/* Buttons */
+
+.edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 7px 14px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.edit-btn:hover {
+  color: var(--text-bright);
+  border-color: var(--text-muted);
+}
+
+.edit-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.edit-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+.edit-btn-primary:hover {
+  background: var(--text-bright);
+  border-color: var(--text-bright);
+  color: var(--bg);
+}
+
+.edit-btn-ghost {
+  background: none;
+}
+
+/* --- Large modal variant for album edit --- */
+
+.edit-modal-lg {
+  max-width: 780px;
+}
+
+.album-edit-grid {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 20px;
+}
+
+.album-edit-cover {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.album-edit-cover-preview {
+  width: 220px;
+  height: 220px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.album-edit-cover-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.album-edit-cover-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.album-edit-cover-actions .edit-btn {
+  flex: 1;
+  justify-content: center;
+}
+
+.album-edit-cover-hint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.pill-ok {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  margin-right: 4px;
+}
+
+.album-edit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* --- Track picker --- */
+
+.track-picker-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.track-picker-header label {
+  margin-right: auto;
+}
+
+.track-picker-mode {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+}
+
+.edit-btn-xs {
+  font-size: 9px;
+  padding: 3px 8px;
+}
+
+.track-picker-hint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.track-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.track-picker-row {
+  display: grid;
+  grid-template-columns: 18px 26px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s, opacity 0.1s;
+  cursor: grab;
+  opacity: 0.5;
+}
+
+.track-picker-row:last-child {
+  border-bottom: none;
+}
+
+.track-picker-row.included {
+  opacity: 1;
+}
+
+.track-picker-row:hover {
+  background: var(--bg-surface);
+}
+
+.track-picker-row.dragging {
+  opacity: 0.4;
+}
+
+.track-picker-row.drop-target {
+  border-top: 1px solid var(--accent);
+}
+
+.track-picker-grip {
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+
+.track-picker-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
+}
+
+.track-picker-row.included .track-picker-toggle {
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+.track-picker-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.track-picker-name {
+  color: var(--text-bright);
+  font-size: 12px;
+  font-family: var(--font-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.track-picker-version {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  padding: 1px 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.track-picker-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.track-picker-duration {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scope tag in modal header */
+.edit-scope-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  padding: 2px 6px;
+  margin-left: 10px;
+  margin-right: auto;
+}
+
+.edit-scope-tag.edit-scope-global {
+  color: var(--warm);
+  border-color: rgba(255, 176, 0, 0.35);
+}
+
+.edit-modal-header {
+  gap: 10px;
+}
