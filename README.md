@@ -32,10 +32,10 @@ pip install -r requirements.txt
 Copy the example config and set your scan root:
 
 ```bash
-copy config.example.json config.json
+copy .env.example .env
 ```
 
-Edit `config.json` to point `scan_root` at your Ableton exports folder.
+Edit `.env` to point `SCAN_ROOT` at your Ableton exports folder.
 
 ## Running
 

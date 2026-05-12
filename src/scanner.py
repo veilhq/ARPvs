@@ -12,8 +12,41 @@ import wave
 from pathlib import Path
 
 
+def is_valid_wav_file(filepath: Path) -> bool:
+    """Check if a file is a valid WAV audio file (not Ableton settings).
+
+    Validates the WAV header to distinguish actual audio files from
+    Ableton Live Clip Settings files that use .wav extension.
+
+    Args:
+        filepath: Path to the file to validate.
+
+    Returns:
+        True if the file is a valid WAV audio file, False otherwise.
+    """
+    try:
+        with open(filepath, "rb") as f:
+            # WAV files start with "RIFF" header
+            header = f.read(4)
+            if header != b"RIFF":
+                return False
+            # Skip file size (4 bytes)
+            f.read(4)
+            # Next 4 bytes should be "WAVE"
+            wave_marker = f.read(4)
+            if wave_marker != b"WAVE":
+                return False
+        return True
+    except Exception:
+        return False
+
+
 def scan_for_tracks(root_path: str) -> list[Path]:
-    """Find all .wav files inside export-versions/ directories.
+    """Find all .wav files inside export-versions/ directories or project folders.
+
+    Looks for:
+    1. .wav files inside export-versions/ subdirectories (primary)
+    2. .wav files directly in project folders (fallback for projects without export-versions/)
 
     Args:
         root_path: Path to the ABLETON folder.
@@ -23,28 +56,105 @@ def scan_for_tracks(root_path: str) -> list[Path]:
     """
     root = Path(root_path)
     tracks = []
+    seen_paths = set()  # Track files we've already added
 
+    # First pass: look for export-versions directories
     for export_dir in root.rglob("export-versions"):
         if not export_dir.is_dir():
             continue
         for wav_file in sorted(export_dir.glob("*.wav")):
-            tracks.append(wav_file)
+            # Validate that the file is actually a WAV audio file
+            if is_valid_wav_file(wav_file):
+                tracks.append(wav_file)
+                seen_paths.add(wav_file.resolve())
+
+    # Second pass: look for .wav files in project folders (one level deep from root)
+    # This catches projects that don't have export-versions/ subdirectories
+    for item in root.iterdir():
+        if not item.is_dir():
+            continue
+        # Skip if it's the export-versions folder itself
+        if item.name == "export-versions":
+            continue
+        # Look for .wav files directly in this folder
+        for wav_file in sorted(item.glob("*.wav")):
+            if wav_file.resolve() not in seen_paths and is_valid_wav_file(wav_file):
+                tracks.append(wav_file)
+                seen_paths.add(wav_file.resolve())
 
     return tracks
+
+
+def scan_for_projects(root_path: str) -> list[Path]:
+    """Find all Ableton Live Set (.als) files that don't have exports.
+
+    These represent unexported/work-in-progress projects.
+    Excludes projects that have corresponding .wav exports in the library.
+    Also excludes .als files in backup directories.
+
+    Args:
+        root_path: Path to the ABLETON folder.
+
+    Returns:
+        List of Path objects pointing to .als files without exports.
+    """
+    root = Path(root_path)
+    projects = []
+    
+    # First, collect all exported track paths to know which projects have exports
+    exported_projects = set()
+    for export_dir in root.rglob("export-versions"):
+        if export_dir.is_dir():
+            wav_files = list(export_dir.glob("*.wav"))
+            if wav_files:
+                # This project has exports, mark it
+                project_dir = export_dir.parent
+                exported_projects.add(project_dir.resolve())
+
+    # Now find .als files that don't have exports
+    for als_file in root.rglob("*.als"):
+        if not als_file.is_file():
+            continue
+        
+        # Skip if this file is in a Backup directory (case-insensitive)
+        path_parts_lower = [part.lower() for part in als_file.parts]
+        if "backup" in path_parts_lower:
+            continue
+        
+        project_dir = als_file.parent
+        
+        # Check if this exact project dir has exports
+        if project_dir.resolve() in exported_projects:
+            continue
+        
+        projects.append(als_file)
+
+    return sorted(projects)
 
 
 def detect_hierarchy(wav_path: Path, scan_root: str) -> dict:
     """Determine the project and album for a given WAV file.
 
+    Handles two cases:
+    1. WAV in export-versions/ subdirectory: project_dir/export-versions/file.wav
+    2. WAV directly in project folder: project_dir/file.wav
+
     Args:
-        wav_path: Path to the .wav file (inside export-versions/).
+        wav_path: Path to the .wav file.
         scan_root: Path to the ABLETON root folder.
 
     Returns:
         Dict with project_name, project_path, album_name, album_path.
     """
-    export_dir = wav_path.parent
-    project_dir = export_dir.parent
+    # Determine if this is in export-versions or directly in a project folder
+    if wav_path.parent.name == "export-versions":
+        # Case 1: export-versions/file.wav
+        export_dir = wav_path.parent
+        project_dir = export_dir.parent
+    else:
+        # Case 2: project_dir/file.wav
+        project_dir = wav_path.parent
+
     potential_album = project_dir.parent
 
     project_name = project_dir.name
@@ -68,14 +178,32 @@ def detect_hierarchy(wav_path: Path, scan_root: str) -> dict:
 
 
 def get_wav_duration(filepath: Path) -> float:
-    """Get duration in seconds from a WAV file header."""
+    """Get duration in seconds from a WAV file header.
+
+    Falls back to mutagen if the stdlib wave module can't handle the file
+    (e.g. compressed WAV or non-standard headers).
+    """
+    # Try stdlib first (fastest for standard PCM WAV)
     try:
         with wave.open(str(filepath), "rb") as wf:
             frames = wf.getnframes()
             rate = wf.getframerate()
-            return round(frames / float(rate), 2)
+            duration = round(frames / float(rate), 2)
+            if duration > 0:
+                return duration
     except Exception:
-        return 0.0
+        pass
+
+    # Fallback to mutagen (handles more formats)
+    try:
+        from mutagen import File as MutagenFile
+        audio = MutagenFile(str(filepath))
+        if audio is not None and audio.info is not None:
+            return round(audio.info.length, 2)
+    except Exception:
+        pass
+
+    return 0.0
 
 
 def hash_file(filepath: Path, chunk_size: int = 8192) -> str:

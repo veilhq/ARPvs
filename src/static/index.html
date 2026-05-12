@@ -4,18 +4,34 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ARPvs</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2300ff41' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20.34 17.52a10 10 0 1 0-2.82 2.82'/><circle cx='19' cy='19' r='2'/><path d='m13.41 13.41 4.18 4.18'/><circle cx='12' cy='12' r='2'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    @font-face {
+      font-family: 'Departure Mono';
+      src: url('/fonts/DepartureMono-Regular.otf') format('opentype');
+      font-display: swap;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/icons@latest"></script>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
   <!-- Header -->
   <header class="topbar">
-    <div class="topbar-title">ARPvs</div>
+    <div class="topbar-title">
+      <span id="topbar-icon" class="topbar-icon"></span>
+      ARPvs
+    </div>
     <div class="topbar-search">
       <input type="text" id="search-input" placeholder="search..." autocomplete="off">
     </div>
+    <div class="topbar-accent-selector">
+      <input type="color" id="accent-color" class="accent-picker" value="#00ff41" title="Choose accent color">
+    </div>
+    <button id="reload-btn" class="topbar-reload" title="Reload page"></button>
   </header>
 
   <!-- Main layout -->
@@ -26,7 +42,7 @@
         <div class="sidebar-label">LIBRARY</div>
         <a href="#" class="sidebar-link active" data-view="all">* all tracks</a>
         <a href="#" class="sidebar-link" data-view="albums"># albums</a>
-        <a href="#" class="sidebar-link" data-view="projects">+ projects</a>
+        <a href="#" class="sidebar-link" data-view="unexported">⚙ unexported</a>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-label">ORGANIZE</div>
@@ -39,22 +55,29 @@
     <main class="content" id="content">
       <div class="empty-state">
         <p>no tracks found</p>
-        <p class="text-muted">configure scan_root in config.json and restart</p>
+        <p class="text-muted">configure SCAN_ROOT in .env and restart</p>
       </div>
     </main>
   </div>
 
   <!-- Player bar -->
   <footer class="player-bar">
-    <div class="player-track-info">
-      <span class="player-title" id="player-title">--</span>
-      <span class="player-separator">//</span>
-      <span class="player-project" id="player-project">--</span>
+    <div class="player-now-playing">
+      <div class="player-art" id="player-art">
+        <span class="player-art-placeholder" id="player-art-icon"></span>
+      </div>
+      <div class="player-track-info">
+        <span class="player-title" id="player-title">--</span>
+        <span class="player-sub" id="player-project">--</span>
+      </div>
     </div>
     <div class="player-controls">
-      <button class="player-btn" id="btn-prev" title="Previous">&lt;</button>
-      <button class="player-btn player-btn-play" id="btn-play" title="Play">&#9654;</button>
-      <button class="player-btn" id="btn-next" title="Next">&gt;</button>
+      <button class="player-btn" id="btn-prev" title="Previous"></button>
+      <button class="player-btn player-btn-play" id="btn-play" title="Play"></button>
+      <button class="player-btn" id="btn-next" title="Next"></button>
+      <div class="player-btn-separator"></div>
+      <button class="player-btn" id="btn-shuffle" title="Shuffle"></button>
+      <button class="player-btn" id="btn-loop" title="Loop"></button>
     </div>
     <div class="player-progress">
       <span class="player-time" id="player-current">0:00</span>
@@ -68,7 +91,16 @@
     </div>
   </footer>
 
+  <!-- Splash screen -->
+  <div id="splash-screen" class="splash-screen">
+    <div class="splash-content">
+      <div class="splash-icon" id="splash-icon"></div>
+      <p class="splash-text">ARPvs® Secure Shell</p>
+      <p class="splash-subtitle">Property of the Bureau Underground</p>
+    </div>
+  </div>
+
   <audio id="audio-element"></audio>
-  <script src="/js/app.js"></script>
+  <script src="/js/main.js" type="module"></script>
 </body>
 </html>

@@ -1,0 +1,321 @@
+/* Album & Project Cards */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 240px));
+  gap: 12px;
+}
+
+.album-card,
+.project-card {
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.album-card:hover,
+.project-card:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-dim);
+}
+
+.album-art {
+  width: 100%;
+  height: 100%;
+  flex-shrink: 0;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.album-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(20%);
+  transition: filter 0.2s;
+}
+
+.album-card:hover .album-art img {
+  filter: grayscale(0%);
+}
+
+.album-info {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 0;
+  flex: 1;
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.8));
+  height: 100%;
+}
+
+.album-controls {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 2;
+}
+
+.album-card:hover .album-controls {
+  opacity: 1;
+}
+
+.album-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+  flex-shrink: 0;
+}
+
+.album-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-dim);
+}
+
+.album-btn svg {
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+}
+
+.album-name,
+.project-name {
+  color: var(--text-bright);
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-heading);
+}
+
+.album-meta,
+.project-meta {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+/* Album Expanded View */
+
+.album-expanded {
+  padding: 0;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 3px 0;
+  margin-bottom: 12px;
+  transition: color 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.back-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.back-btn-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.back-btn:hover {
+  color: var(--accent);
+}
+
+.back-btn:hover .back-btn-icon svg {
+  color: var(--accent);
+}
+
+.album-expanded-header {
+  display: flex;
+  gap: 24px;
+  align-items: flex-end;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.album-expanded-art {
+  width: 160px;
+  height: 160px;
+  flex-shrink: 0;
+  background: #111;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.album-expanded-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.album-expanded-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.album-expanded-name {
+  color: var(--text-bright);
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  font-family: var(--font-heading);
+}
+
+.album-expanded-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+/* Project Card (no art) */
+
+.project-card {
+  padding: 16px;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Unexported Projects */
+
+.unexported-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.unexported-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.unexported-group-header {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+}
+
+.unexported-group-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.unexported-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.unexported-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-surface);
+}
+
+.unexported-card:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-dim);
+}
+
+.unexported-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.unexported-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.unexported-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  gap: 4px;
+}
+
+.unexported-name {
+  color: var(--text-bright);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-heading);
+}
+
+.unexported-meta {
+  color: var(--text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+}

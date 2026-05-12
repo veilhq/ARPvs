@@ -45,6 +45,15 @@ CREATE TABLE IF NOT EXISTS projects (
     FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS unexported_projects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    path TEXT NOT NULL UNIQUE,
+    file_size_bytes INTEGER,
+    modified_at REAL,
+    discovered_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS tracks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     project_id INTEGER NOT NULL,
