@@ -31,6 +31,10 @@ export async function fetchTags() {
   return (await get('/api/tags')) ?? [];
 }
 
+export async function fetchLibrarySummary() {
+  return (await get('/api/library')) ?? {};
+}
+
 export async function fetchTrackTags() {
   return (await get('/api/track-tags')) ?? {};
 }

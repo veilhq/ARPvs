@@ -19,6 +19,13 @@
   flex-direction: column;
 }
 
+/* Condensed: constrain via horizontal padding so the scrollbar stays
+   anchored to the viewport edge instead of sliding inward. */
+.content.condensed {
+  padding-left: max(16px, calc((100% - 1280px) / 2));
+  padding-right: max(16px, calc((100% - 1280px) / 2));
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;

@@ -6,11 +6,52 @@
  */
 
 import { state } from './state.js';
-import { formatTime, parseVersion, groupTracksByVersion } from './utils.js';
-import { fetchAlbums, fetchTracks } from './api.js';
+import { formatTime, formatDurationLong, formatFileSize, parseVersion, groupTracksByVersion } from './utils.js';
+import { fetchAlbums, fetchTracks, fetchLibrarySummary } from './api.js';
 import { createIcon } from './icons.js';
+import { renderDitherFrame } from './dither-bg.js';
 
 const content = document.getElementById('content');
+
+// --- Sparkline helper ---
+
+// Deterministic pseudo-random generator seeded on track id, so each row
+// gets a consistent placeholder waveform until real peaks are computed.
+function seededPeaks(seed, count) {
+  const peaks = [];
+  let s = seed * 9301 + 49297;
+  for (let i = 0; i < count; i++) {
+    s = (s * 9301 + 49297) % 233280;
+    const rand = s / 233280;
+    // Shape: envelope that rises then falls + some wiggle
+    const t = i / count;
+    const envelope = Math.sin(t * Math.PI) * 0.7 + 0.2;
+    peaks.push(Math.max(0.08, Math.min(1, envelope * (0.5 + rand * 0.8))));
+  }
+  return peaks;
+}
+
+function sparklineSvg(track, width = 80, height = 20) {
+  let peaks;
+  if (track.waveform_peaks && track.waveform_peaks.length) {
+    peaks = track.waveform_peaks;
+  } else {
+    peaks = seededPeaks(track.id || 1, 32);
+  }
+  const bars = peaks.length;
+  const barWidth = width / bars;
+  const gap = Math.max(0.5, barWidth * 0.2);
+  const w = barWidth - gap;
+  let html = `<svg class="track-sparkline" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">`;
+  peaks.forEach((p, i) => {
+    const h = Math.max(1, p * height);
+    const x = i * barWidth;
+    const y = (height - h) / 2;
+    html += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" />`;
+  });
+  html += `</svg>`;
+  return html;
+}
 
 // Injected by main.js so views can trigger playback without a circular dep.
 let _playTrack = null;
@@ -76,9 +117,17 @@ function handleSort(field) {
 // --- Shared helpers ---
 
 function thumbHtml(albumId) {
-  return albumId
-    ? `<img src="/api/albums/${albumId}/cover" alt="" loading="lazy">`
-    : `<span class="track-thumb-placeholder">${lucideIcon('music', 18)}</span>`;
+  // Always include both: a placeholder (shown by default) and an img that
+  // hides the placeholder on successful load of real art. The img's onload
+  // checks dimensions to detect the SVG placeholder and skips it.
+  if (albumId) {
+    return `
+      <span class="track-thumb-placeholder">${lucideIcon('music', 14)}</span>
+      <img src="/api/albums/${albumId}/cover" alt="" loading="lazy"
+           onload="if(this.naturalWidth>200){this.style.display='block';this.previousElementSibling.style.display='none'}"
+           style="display:none">`;
+  }
+  return `<span class="track-thumb-placeholder">${lucideIcon('music', 14)}</span>`;
 }
 
 function trackRowHtml(t, i, { showTags = true } = {}) {
@@ -107,6 +156,7 @@ function trackRowHtml(t, i, { showTags = true } = {}) {
 
   // Format date if available
   const dateStr = t.modified_at ? new Date(t.modified_at * 1000).toLocaleDateString() : '';
+  const fileSizeStr = t.file_size_bytes ? formatFileSize(t.file_size_bytes) : '';
 
   return `
     <div class="track-row${isActive ? ' track-active' : ''}" data-index="${i}">
@@ -117,10 +167,13 @@ function trackRowHtml(t, i, { showTags = true } = {}) {
         ${subText ? `<span class="track-sub">${subText}</span>` : ''}
       </div>
       <div class="track-version-badge">
-        ${version ? `<span class="track-version">${version}</span>` : ''}
+        <span class="track-versions-tag">1 version</span>
       </div>
       <span class="track-tags">${tagHtml}</span>
+      <span class="track-sparkline-wrap" title="Waveform">${sparklineSvg(t)}</span>
       <span class="track-metadata">
+        <span class="track-format" title="Format">WAV</span>
+        <span class="track-filesize" title="File size">${fileSizeStr}</span>
         <span class="track-duration" title="Duration">${formatTime(t.duration_seconds)}</span>
         ${dateStr ? `<span class="track-date" title="Modified">${dateStr}</span>` : ''}
       </span>
@@ -169,13 +222,16 @@ function renderGroupedTracksHtml(tracks, { showTags = true } = {}) {
           <span class="track-versions-tag">${group.tracks.length} versions</span>
         </div>
         <span class="track-tags"></span>
+        <span class="track-sparkline-wrap" title="Waveform">${sparklineSvg(firstTrack)}</span>
         <span class="track-metadata">
+          <span class="track-format" title="Format">WAV</span>
+          <span class="track-filesize" title="File size">${firstTrack.file_size_bytes ? formatFileSize(firstTrack.file_size_bytes) : ''}</span>
           <span class="track-duration" title="Duration">${formatTime(firstTrack.duration_seconds)}</span>
           ${dateStr ? `<span class="track-date" title="Modified">${dateStr}</span>` : ''}
         </span>
       </div>`;
 
-    const versionRows = group.tracks.map((t) => {
+    const versionRows = group.tracks.map((t, idx) => {
       const { version } = parseVersion(t.display_name || t.filename);
       const isActive = state.currentIndex === t.originalIndex;
       let indicator;
@@ -184,6 +240,8 @@ function renderGroupedTracksHtml(tracks, { showTags = true } = {}) {
       else                   indicator = `<span class="track-indicator-icon">${lucideIcon('dot', 6)}</span>`;
 
       const versionDateStr = t.modified_at ? new Date(t.modified_at * 1000).toLocaleDateString() : '';
+      const versionFileSize = t.file_size_bytes ? formatFileSize(t.file_size_bytes) : '';
+      const positionLabel = `${idx + 1}/${group.tracks.length}`;
 
       return `
         <div class="track-row track-version-row${isActive ? ' track-active' : ''}" data-index="${t.originalIndex}" data-group-id="${groupId}">
@@ -192,10 +250,14 @@ function renderGroupedTracksHtml(tracks, { showTags = true } = {}) {
           <div class="track-info">
             <span class="track-name">
               <span class="track-version-label">${version}</span>
+              <span class="track-version-position">${positionLabel}</span>
             </span>
           </div>
           <span class="track-tags"></span>
+          <span class="track-sparkline-wrap" title="Waveform">${sparklineSvg(t)}</span>
           <span class="track-metadata">
+            <span class="track-format" title="Format">WAV</span>
+            <span class="track-filesize" title="File size">${versionFileSize}</span>
             <span class="track-duration" title="Duration">${formatTime(t.duration_seconds)}</span>
             ${versionDateStr ? `<span class="track-date" title="Modified">${versionDateStr}</span>` : ''}
           </span>
@@ -223,6 +285,44 @@ function bindGroupHeaders() {
 
 // --- Track list view ---
 
+/**
+ * Categorize a Unix timestamp into a time bucket label.
+ */
+function getTimeBucket(timestamp) {
+  if (!timestamp) return 'Older';
+  const now = Date.now() / 1000;
+  const diff = now - timestamp;
+  const day = 86400;
+
+  if (diff < day)      return 'Today';
+  if (diff < day * 2)  return 'Yesterday';
+  if (diff < day * 7)  return 'This Week';
+  if (diff < day * 30) return 'This Month';
+  if (diff < day * 90) return 'Last 3 Months';
+  return 'Older';
+}
+
+const TIME_BUCKET_ORDER = ['Today', 'Yesterday', 'This Week', 'This Month', 'Last 3 Months', 'Older'];
+
+/**
+ * Group tracks into time-based sections.
+ * Returns an array of { label, tracks } in chronological order (newest first).
+ */
+function groupTracksByTime(tracks) {
+  const buckets = new Map();
+  TIME_BUCKET_ORDER.forEach(label => buckets.set(label, []));
+
+  tracks.forEach((track, index) => {
+    const label = getTimeBucket(track.modified_at);
+    buckets.get(label).push({ ...track, originalIndex: index });
+  });
+
+  // Only return non-empty buckets
+  return TIME_BUCKET_ORDER
+    .filter(label => buckets.get(label).length > 0)
+    .map(label => ({ label, tracks: buckets.get(label) }));
+}
+
 export function renderTrackList(tracks) {
   if (!tracks.length) {
     content.innerHTML = `
@@ -236,6 +336,50 @@ export function renderTrackList(tracks) {
   const totalDuration = tracks.reduce((sum, t) => sum + (t.duration_seconds || 0), 0);
   const sortIcon = state.sortAsc ? lucideIcon('arrow-up', 12) : lucideIcon('arrow-down', 12);
 
+  // Unique albums and projects
+  const albumSet = new Set(tracks.map(t => t.album_name).filter(Boolean));
+  const projectSet = new Set(tracks.map(t => t.project_name).filter(Boolean));
+  const totalFileSize = tracks.reduce((sum, t) => sum + (t.file_size_bytes || 0), 0);
+  const unexportedCount = state.librarySummary?.total_unexported || 0;
+
+  // Hero identity block + stats strip
+  const heroBlock = `
+    <div class="library-hero">
+      <div class="library-hero-icon">
+        ${lucideIcon('arpvs', 104)}
+      </div>
+      <div class="library-hero-title">ARPvs</div>
+    </div>`;
+
+  // Stats strip
+  const statsStrip = `
+    <div class="stats-strip">
+      <div class="stat-item">
+        <span class="stat-value">${tracks.length}</span>
+        <span class="stat-label">tracks</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">${projectSet.size}</span>
+        <span class="stat-label">projects</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">${albumSet.size}</span>
+        <span class="stat-label">albums</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">${unexportedCount}</span>
+        <span class="stat-label">unexported</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">${formatDurationLong(totalDuration)}</span>
+        <span class="stat-label">duration</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">${formatFileSize(totalFileSize)}</span>
+        <span class="stat-label">on disk</span>
+      </div>
+    </div>`;
+
   const sortFields = [
     { key: 'name',     label: 'name' },
     { key: 'project',  label: 'project' },
@@ -245,10 +389,6 @@ export function renderTrackList(tracks) {
 
   const toolbar = `
     <div class="track-toolbar">
-      <div class="track-toolbar-info">
-        <span class="track-count">${tracks.length} track${tracks.length !== 1 ? 's' : ''}</span>
-        <span class="track-total-duration">${formatTime(totalDuration)} total</span>
-      </div>
       <div class="track-toolbar-sort">
         <div class="sort-wrapper">
           <button class="sort-toggle" id="sort-toggle-btn">
@@ -271,9 +411,26 @@ export function renderTrackList(tracks) {
       </div>
     </div>`;
 
-  const rows = renderGroupedTracksHtml(tracks);
+  // Group tracks by time when sorted by date (default), otherwise flat list
+  let trackListHtml;
+  if (state.sortBy === 'date' && !state.sortAsc) {
+    const sections = groupTracksByTime(tracks);
+    trackListHtml = sections.map(section => {
+      const sectionRows = renderGroupedTracksHtml(section.tracks, { showTags: true });
+      return `
+        <div class="time-section">
+          <div class="time-section-header">
+            <span class="time-section-label">${section.label}</span>
+            <span class="time-section-count">${section.tracks.length}</span>
+          </div>
+          <div class="track-list">${sectionRows}</div>
+        </div>`;
+    }).join('');
+  } else {
+    trackListHtml = `<div class="track-list">${renderGroupedTracksHtml(tracks)}</div>`;
+  }
 
-  content.innerHTML = `${toolbar}<div class="track-list">${rows}</div>`;
+  content.innerHTML = `${heroBlock}${statsStrip}${toolbar}${trackListHtml}`;
 
   // Sort toggle dropdown
   const sortToggleBtn = document.getElementById('sort-toggle-btn');
@@ -296,6 +453,36 @@ export function renderTrackList(tracks) {
 
   bindGroupHeaders();
   bindTrackRows();
+
+  // Hero icon hover — pick a random palette color, persist briefly, then fade back
+  const heroIcon = content.querySelector('.library-hero-icon');
+  if (heroIcon) {
+    let fadeTimer = null;
+    const paletteColors = () => [
+      getComputedStyle(document.documentElement).getPropertyValue('--warm').trim(),
+      getComputedStyle(document.documentElement).getPropertyValue('--cool').trim(),
+      getComputedStyle(document.documentElement).getPropertyValue('--comp').trim(),
+    ];
+    heroIcon.addEventListener('mouseenter', () => {
+      const colors = paletteColors();
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const svg = heroIcon.querySelector('svg');
+      // Instant color change
+      svg.style.transition = 'none';
+      svg.style.color = color;
+      // Clear any pending fade-back
+      if (fadeTimer) clearTimeout(fadeTimer);
+    });
+    heroIcon.addEventListener('mouseleave', () => {
+      const svg = heroIcon.querySelector('svg');
+      // Hold the color for 2s, then fade back over 1.5s
+      if (fadeTimer) clearTimeout(fadeTimer);
+      fadeTimer = setTimeout(() => {
+        svg.style.transition = 'color 1.5s cubic-bezier(0.4, 0, 0.2, 1)';
+        svg.style.color = '';
+      }, 2000);
+    });
+  }
 }
 
 // --- Albums grid ---
@@ -313,6 +500,7 @@ export function renderAlbums(albums) {
     return `
     <div class="album-card" data-album-id="${a.id}" data-album-name="${a.name}">
       <div class="album-art">
+        <canvas class="album-dither-canvas" data-seed="${a.id}"></canvas>
         <img src="${a.cover_art_url}" alt="${a.name}" loading="lazy" crossorigin="anonymous">
         <div class="album-vinyl">
           <div class="vinyl-groove"></div>
@@ -339,19 +527,55 @@ export function renderAlbums(albums) {
 
   content.innerHTML = `<div class="view-header">Albums</div><div class="card-grid">${cards}</div>`;
 
-  // Extract dominant color from album art for card tinting
+  // Lazy-render dither canvases via IntersectionObserver — only generates
+  // the dither frame when the card scrolls into view, keeping initial render fast.
+  const ditherObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const canvas = entry.target;
+      const seed = parseInt(canvas.dataset.seed, 10);
+      const size = 300;
+      canvas.width = size;
+      canvas.height = size;
+      renderDitherFrame(canvas, seed);
+      canvas.dataset.rendered = '1';
+      observer.unobserve(canvas);
+    });
+  }, { rootMargin: '200px' }); // Start rendering slightly before visible
+
   content.querySelectorAll('.album-card').forEach(card => {
     const img = card.querySelector('.album-art img');
+    const canvas = card.querySelector('.album-dither-canvas');
     const glowEl = card.querySelector('.album-card-glow');
 
+    // Queue canvas for lazy dither rendering
+    ditherObserver.observe(canvas);
+
     img.addEventListener('load', () => {
-      try {
-        const color = extractDominantColor(img);
-        if (color) {
-          card.style.setProperty('--card-tint', color);
-          glowEl.style.background = `radial-gradient(ellipse at bottom, ${color}22 0%, transparent 70%)`;
-        }
-      } catch (e) { /* cross-origin or SVG placeholder — ignore */ }
+      // Check if the loaded image is an SVG placeholder (very small or SVG content-type)
+      const isSvgPlaceholder = img.naturalWidth <= 200 && img.naturalHeight <= 200;
+
+      if (isSvgPlaceholder) {
+        // Hide the placeholder img, show the dither canvas
+        img.style.display = 'none';
+        canvas.style.display = 'block';
+      } else {
+        // Real cover art — hide canvas, try color extraction
+        canvas.style.display = 'none';
+        try {
+          const color = extractDominantColor(img);
+          if (color) {
+            card.style.setProperty('--card-tint', color);
+            glowEl.style.background = `radial-gradient(ellipse at bottom, ${color}22 0%, transparent 70%)`;
+          }
+        } catch (e) { /* cross-origin — ignore */ }
+      }
+    });
+
+    img.addEventListener('error', () => {
+      // Image failed to load — show dither canvas
+      img.style.display = 'none';
+      canvas.style.display = 'block';
     });
 
     const playBtn = card.querySelector('.album-btn-play');

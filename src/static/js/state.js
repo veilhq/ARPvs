@@ -13,6 +13,7 @@ export const state = {
   sortBy: 'date',     // 'name' | 'project' | 'duration' | 'date'
   sortAsc: false,
   trackTags: {},      // { [trackId]: [{id, name, color}] }
+  librarySummary: null, // { total_tracks, total_projects, total_albums, total_unexported, total_duration_seconds, total_file_size_bytes }
   
   // Playback modes
   shuffle: false,     // Shuffle playback

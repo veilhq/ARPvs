@@ -155,3 +155,101 @@ export function initDitherBackground() {
     }
   };
 }
+
+/**
+ * Render a single static frame of the dither pattern onto a canvas.
+ * Uses a seed value to produce a unique "frozen moment" per album.
+ *
+ * @param {HTMLCanvasElement} canvas - Target canvas element.
+ * @param {number} seed - Numeric seed to vary the pattern (e.g. album ID).
+ */
+export function renderDitherFrame(canvas, seed) {
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width;
+  var h = canvas.height;
+  if (!w || !h) return;
+
+  var CELL_SIZE = 2;
+  var time = (seed * 7.3) % 100; // Deterministic "moment" from seed
+
+  var GRAYS = [
+    { r: 0,  g: 0,  b: 0  },
+    { r: 10, g: 10, b: 10 },
+    { r: 24, g: 24, b: 24 },
+    { r: 42, g: 42, b: 42 },
+    { r: 60, g: 60, b: 60 },
+    { r: 80, g: 80, b: 80 },
+  ];
+
+  var bayerMatrix = [
+    [ 0, 32,  8, 40,  2, 34, 10, 42],
+    [48, 16, 56, 24, 50, 18, 58, 26],
+    [12, 44,  4, 36, 14, 46,  6, 38],
+    [60, 28, 52, 20, 62, 30, 54, 22],
+    [ 3, 35, 11, 43,  1, 33,  9, 41],
+    [51, 19, 59, 27, 49, 17, 57, 25],
+    [15, 47,  7, 39, 13, 45,  5, 37],
+    [63, 31, 55, 23, 61, 29, 53, 21]
+  ];
+  for (var i = 0; i < 8; i++)
+    for (var j = 0; j < 8; j++)
+      bayerMatrix[i][j] /= 64;
+
+  function lerpColor(a, b, t) {
+    return {
+      r: Math.round(a.r + (b.r - a.r) * t),
+      g: Math.round(a.g + (b.g - a.g) * t),
+      b: Math.round(a.b + (b.b - a.b) * t)
+    };
+  }
+
+  function sampleGray(val) {
+    var pos = val * (GRAYS.length - 1);
+    var idx = Math.min(GRAYS.length - 2, Math.floor(pos));
+    var frac = pos - idx;
+    return lerpColor(GRAYS[idx], GRAYS[idx + 1], frac);
+  }
+
+  var imgData = ctx.createImageData(w, h);
+  var data = imgData.data;
+  var cols = Math.ceil(w / CELL_SIZE);
+  var rows = Math.ceil(h / CELL_SIZE);
+
+  for (var row = 0; row < rows; row++) {
+    for (var col = 0; col < cols; col++) {
+      var px = col * CELL_SIZE;
+      var py = row * CELL_SIZE;
+
+      var cx = w * 0.5 + Math.sin(time * 0.3) * w * 0.25;
+      var cy = h * 0.5 + Math.cos(time * 0.25) * h * 0.25;
+      var dx = (px - cx) / w;
+      var dy = (py - cy) / h;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+
+      var g1 = 0.5 + 0.5 * Math.sin(dist * 4 - time * 0.6);
+      var g2 = 0.5 + 0.5 * Math.sin((px * 0.003 + py * 0.002) + time * 0.4);
+      var g3 = 0.5 + 0.5 * Math.cos((py * 0.004) - time * 0.2);
+      var val = (g1 * 0.4 + g2 * 0.3 + g3 * 0.3);
+
+      var threshold = bayerMatrix[row & 7][col & 7];
+      var lo = val * 0.3;
+      var hi = val * 0.5 + 0.4;
+      var quantized = (val > threshold) ? hi : lo;
+      quantized = quantized * 0.8;
+
+      var color = sampleGray(quantized);
+
+      for (var sy = 0; sy < CELL_SIZE && py + sy < h; sy++) {
+        for (var sx = 0; sx < CELL_SIZE && px + sx < w; sx++) {
+          var idx = ((py + sy) * w + (px + sx)) * 4;
+          data[idx]     = color.r;
+          data[idx + 1] = color.g;
+          data[idx + 2] = color.b;
+          data[idx + 3] = 255;
+        }
+      }
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+}

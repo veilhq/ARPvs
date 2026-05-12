@@ -15,6 +15,32 @@ export function formatTime(seconds) {
 }
 
 /**
+ * Format a duration in seconds as a human-readable string (e.g. "2h 14m" or "45m").
+ * @param {number} seconds
+ * @returns {string}
+ */
+export function formatDurationLong(seconds) {
+  if (!seconds || isNaN(seconds)) return '0m';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+/**
+ * Format a byte count as a human-readable size (e.g. "1.2 GB", "340 MB").
+ * @param {number} bytes
+ * @returns {string}
+ */
+export function formatFileSize(bytes) {
+  if (!bytes || isNaN(bytes)) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+/**
  * Extract version suffix from a track name.
  * Matches patterns like "V1", "V10", "v2", etc.
  * Returns { name: "Cathedral I", version: "Version 1", versionNum: 1 } or { name: "Cathedral I", version: null, versionNum: null }

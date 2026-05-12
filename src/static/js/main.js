@@ -7,7 +7,7 @@
  */
 
 import { state } from './state.js';
-import { fetchTracks, fetchTrackTags } from './api.js';
+import { fetchTracks, fetchTrackTags, fetchLibrarySummary } from './api.js';
 import { sortTracks, renderTrackList, setPlayTrack } from './views.js';
 import { playTrack, setOnTrackChange, toggleShuffle, toggleLoop } from './player.js';
 import { initializeTheme, setupColorPicker, setupPaletteMode, setupScrollShadow } from './theme.js';
@@ -67,13 +67,53 @@ reloadBtn.addEventListener('click', () => {
   location.reload();
 });
 
+// Width toggle
+(function initWidthToggle() {
+  var btn = document.getElementById('width-toggle');
+  var contentEl = document.getElementById('content');
+  if (!btn || !contentEl) return;
+
+  var KEY = 'app-condensed';
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+
+  function setCondensed(on) {
+    contentEl.classList.toggle('condensed', on);
+    btn.classList.toggle('active', on);
+    btn.innerHTML = createIcon(on ? 'align-center' : 'columns-2', 15);
+    btn.setAttribute('data-tooltip', on ? 'Full width' : 'Reading width');
+  }
+
+  function toggle() {
+    var isCondensed = contentEl.classList.contains('condensed');
+    setCondensed(!isCondensed);
+    try { localStorage.setItem(KEY, !isCondensed ? '1' : '0'); } catch (e) {}
+  }
+
+  if (saved === '1') setCondensed(true);
+
+  btn.addEventListener('click', toggle);
+
+  // Keyboard shortcut: "w" toggles reading width (unless typing in an input)
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'w' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      var tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+      e.preventDefault();
+      toggle();
+    }
+  });
+})();
+
 async function init() {
-  const [tracks, trackTags] = await Promise.all([
+  const [tracks, trackTags, librarySummary] = await Promise.all([
     fetchTracks(),
     fetchTrackTags(),
+    fetchLibrarySummary(),
   ]);
 
   state.trackTags = trackTags;
+  state.librarySummary = librarySummary;
   state.tracks    = sortTracks(tracks);
   renderTrackList(state.tracks);
   

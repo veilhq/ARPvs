@@ -199,14 +199,20 @@ async def get_library_summary():
         tracks = conn.execute("SELECT COUNT(*) as c FROM tracks").fetchone()
         projects = conn.execute("SELECT COUNT(*) as c FROM projects").fetchone()
         albums = conn.execute("SELECT COUNT(*) as c FROM albums").fetchone()
+        unexported = conn.execute("SELECT COUNT(*) as c FROM unexported_projects").fetchone()
         duration = conn.execute(
             "SELECT COALESCE(SUM(duration_seconds), 0) as d FROM tracks"
+        ).fetchone()
+        file_size = conn.execute(
+            "SELECT COALESCE(SUM(file_size_bytes), 0) as s FROM tracks"
         ).fetchone()
         return {
             "total_tracks": tracks["c"],
             "total_projects": projects["c"],
             "total_albums": albums["c"],
+            "total_unexported": unexported["c"],
             "total_duration_seconds": duration["d"],
+            "total_file_size_bytes": file_size["s"],
             "last_scan_at": None,  # TODO: track scan timestamps
         }
     finally:
