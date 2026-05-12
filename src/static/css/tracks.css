@@ -673,3 +673,17 @@
   color: var(--accent);
   border-color: var(--accent);
 }
+
+/* Dither placeholder fills its container and sits under any real image. */
+.track-thumb canvas.dither-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+}
+
+.track-row:hover .track-thumb canvas.dither-canvas,
+.track-row.track-active .track-thumb canvas.dither-canvas {
+  opacity: 1;
+}

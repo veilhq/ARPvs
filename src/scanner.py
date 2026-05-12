@@ -133,18 +133,22 @@ def scan_for_projects(root_path: str) -> list[Path]:
 
 
 def detect_hierarchy(wav_path: Path, scan_root: str) -> dict:
-    """Determine the project and album for a given WAV file.
+    """Determine the project and parent-folder label for a given WAV file.
 
     Handles two cases:
     1. WAV in export-versions/ subdirectory: project_dir/export-versions/file.wav
     2. WAV directly in project folder: project_dir/file.wav
+
+    The `folder_name` is the name of the project's parent directory,
+    used as display-only metadata in the UI (e.g. "Midnight Sessions").
+    It does NOT imply any album membership — albums are user-created.
 
     Args:
         wav_path: Path to the .wav file.
         scan_root: Path to the ABLETON root folder.
 
     Returns:
-        Dict with project_name, project_path, album_name, album_path.
+        Dict with project_name, project_path, folder_name.
     """
     # Determine if this is in export-versions or directly in a project folder
     if wav_path.parent.name == "export-versions":
@@ -155,26 +159,23 @@ def detect_hierarchy(wav_path: Path, scan_root: str) -> dict:
         # Case 2: project_dir/file.wav
         project_dir = wav_path.parent
 
-    potential_album = project_dir.parent
+    parent = project_dir.parent
 
     project_name = project_dir.name
     if project_name.endswith(" Project"):
         project_name = project_name[:-8]
 
-    if potential_album.resolve() == Path(scan_root).resolve():
-        return {
-            "project_name": project_name,
-            "project_path": str(project_dir),
-            "album_name": None,
-            "album_path": None,
-        }
+    # Project lives directly under the scan root → no folder label.
+    if parent.resolve() == Path(scan_root).resolve():
+        folder_name = None
     else:
-        return {
-            "project_name": project_name,
-            "project_path": str(project_dir),
-            "album_name": potential_album.name,
-            "album_path": str(potential_album),
-        }
+        folder_name = parent.name
+
+    return {
+        "project_name": project_name,
+        "project_path": str(project_dir),
+        "folder_name": folder_name,
+    }
 
 
 def get_wav_duration(filepath: Path) -> float:

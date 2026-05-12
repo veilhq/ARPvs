@@ -10,6 +10,7 @@
 import { state } from './state.js';
 import { formatTime } from './utils.js';
 import { createIcon } from './icons.js';
+import { ditherCanvasHtml, bindDitherCanvases } from './dither-bg.js';
 
 // Keep call sites short; createIcon already covers every name we need.
 const icon = createIcon;
@@ -67,14 +68,13 @@ export function playTrack(index) {
 
   // Update player bar UI
   playerTitle.textContent = track.display_name || track.filename;
-  playerSub.textContent   = [track.project_name, track.album_name].filter(Boolean).join(' • ');
+  playerSub.textContent   = [track.project_name, track.folder_name].filter(Boolean).join(' • ');
   btnPlay.innerHTML = icon('pause', 18);
 
-  if (track.album_id) {
-    playerArt.innerHTML = `<img src="/api/albums/${track.album_id}/cover" alt="">`;
-  } else {
-    playerArt.innerHTML = `<span class="player-art-placeholder">${icon('music', 20)}</span>`;
-  }
+  // Seed the dither art by project id so sibling versions share a pattern.
+  const artSeed = track.project_id || track.id || 1;
+  playerArt.innerHTML = ditherCanvasHtml(artSeed);
+  bindDitherCanvases(playerArt);
 
   // Re-render track list to reflect new active row
   onTrackChange?.();

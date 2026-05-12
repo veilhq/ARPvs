@@ -11,6 +11,16 @@ async function get(url) {
   return res.json();
 }
 
+async function send(method, url, body) {
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body == null ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
 export async function fetchTracks() {
   return (await get('/api/tracks')) ?? [];
 }
@@ -50,13 +60,7 @@ export async function searchTracks(query) {
  * @returns {Promise<{updated: Array} | null>}
  */
 export async function updateTrack(trackId, patch) {
-  const res = await fetch(`/api/tracks/${trackId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) return null;
-  return res.json();
+  return send('PATCH', `/api/tracks/${trackId}`, patch);
 }
 
 /**
@@ -66,33 +70,41 @@ export async function updateTrack(trackId, patch) {
  * @param {{display_name?: string | null, apply_to_versions?: boolean}} patch
  */
 export async function updateAlbumTrack(albumId, trackId, patch) {
-  const res = await fetch(`/api/albums/${albumId}/tracks/${trackId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) return null;
-  return res.json();
+  return send('PATCH', `/api/albums/${albumId}/tracks/${trackId}`, patch);
 }
 
 /**
- * Fetch an album's tracks, including the auto candidates and curated ids.
+ * Fetch an album's ordered track list.
+ * @returns {Promise<{tracks: Array}>}
  */
 export async function fetchAlbumTracks(albumId) {
-  return (await get(`/api/albums/${albumId}/tracks`)) ?? { is_curated: false, tracks: [], auto_tracks: [], curated_ids: [] };
+  return (await get(`/api/albums/${albumId}/tracks`)) ?? { tracks: [] };
 }
 
 /**
- * Patch an album's editable fields.
+ * Create a new album.
+ * @param {string} name
+ * @returns {Promise<object | null>}
+ */
+export async function createAlbum(name) {
+  return send('POST', '/api/albums', { name });
+}
+
+/**
+ * Rename an album.
  * @param {number} albumId
- * @param {{display_name?: string | null}} patch
+ * @param {{name: string}} patch
  */
 export async function updateAlbum(albumId, patch) {
-  const res = await fetch(`/api/albums/${albumId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(patch),
-  });
+  return send('PATCH', `/api/albums/${albumId}`, patch);
+}
+
+/**
+ * Delete an album. Tracks themselves are untouched.
+ * @param {number} albumId
+ */
+export async function deleteAlbum(albumId) {
+  const res = await fetch(`/api/albums/${albumId}`, { method: 'DELETE' });
   if (!res.ok) return null;
   return res.json();
 }
@@ -114,7 +126,7 @@ export async function uploadAlbumCover(albumId, file) {
 }
 
 /**
- * Remove an album's cover override, reverting to folder-detected art.
+ * Remove an album's cover, reverting to the generated placeholder.
  */
 export async function deleteAlbumCover(albumId) {
   const res = await fetch(`/api/albums/${albumId}/cover`, { method: 'DELETE' });
@@ -123,17 +135,10 @@ export async function deleteAlbumCover(albumId) {
 }
 
 /**
- * Replace an album's curated track list. Pass an empty array to revert
- * to auto mode (all tracks under the album's projects).
+ * Replace an album's track list and ordering.
  * @param {number} albumId
  * @param {number[]} trackIds
  */
 export async function setAlbumTracks(albumId, trackIds) {
-  const res = await fetch(`/api/albums/${albumId}/tracks`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ track_ids: trackIds }),
-  });
-  if (!res.ok) return null;
-  return res.json();
+  return send('PUT', `/api/albums/${albumId}/tracks`, { track_ids: trackIds });
 }

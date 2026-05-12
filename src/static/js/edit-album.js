@@ -1,17 +1,23 @@
 /**
- * edit-album.js — Album rename + cover + track curation modal.
+ * edit-album.js — Album create + edit modals.
  *
- * All edits are nondestructive: the folder name and auto-detected cover
- * art stay intact. Overrides live in albums.display_name_override and
- * albums.cover_override_path. Curated tracks go through album_tracks.
+ * Albums are user-created playlists. Editing covers:
+ *   - Rename (writes albums.name)
+ *   - Cover upload/reset (user-provided image; otherwise a placeholder)
+ *   - Track picker — search/browse every track in the library, toggle
+ *     inclusion, drag-to-reorder. Saves to album_tracks.
+ *   - Per-album track rename (album_tracks.display_name). Preserved.
+ *   - Delete album
  *
- * An album starts in "auto mode" (all tracks under its projects) and
- * can be promoted to "curated" by saving a non-auto track list.
- * Clearing the curation reverts to auto.
+ * All edits are nondestructive: tracks themselves are never touched,
+ * files on disk are never renamed.
  */
 
 import {
+  createAlbum,
+  deleteAlbum,
   fetchAlbumTracks,
+  fetchTracks,
   updateAlbum,
   uploadAlbumCover,
   deleteAlbumCover,
@@ -25,27 +31,104 @@ let onSavedCallback = null;
 
 export function onAlbumSaved(fn) { onSavedCallback = fn; }
 
+// ============================================================================
+// Create modal
+// ============================================================================
+
+/**
+ * Open the create-album modal. Calls `onCreated(album)` after success so
+ * the caller can refresh its view.
+ */
+export function openCreateAlbum(onCreated) {
+  const overlay = document.createElement('div');
+  overlay.className = 'edit-modal-overlay';
+  overlay.innerHTML = `
+    <div class="edit-modal" role="dialog" aria-label="Create album">
+      <div class="edit-modal-header">
+        <span class="edit-modal-title">New Album</span>
+        <button class="edit-modal-close" aria-label="Close">${createIcon('x', 16)}</button>
+      </div>
+      <div class="edit-modal-body">
+        <div class="edit-field">
+          <label for="album-create-name">Name</label>
+          <input type="text" id="album-create-name" placeholder="My Album" autocomplete="off" autofocus>
+          <div class="edit-field-hint">You can add tracks after creating.</div>
+        </div>
+      </div>
+      <div class="edit-modal-footer">
+        <span></span>
+        <div class="edit-modal-actions">
+          <button class="edit-btn edit-btn-ghost" id="album-create-cancel">Cancel</button>
+          <button class="edit-btn edit-btn-primary" id="album-create-submit">Create</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  modalEl = overlay;
+
+  const nameInput = overlay.querySelector('#album-create-name');
+  const submitBtn = overlay.querySelector('#album-create-submit');
+
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+  overlay.querySelector('.edit-modal-close').addEventListener('click', closeModal);
+  overlay.querySelector('#album-create-cancel').addEventListener('click', closeModal);
+
+  const submit = async () => {
+    const name = nameInput.value.trim();
+    if (!name) {
+      nameInput.focus();
+      return;
+    }
+    submitBtn.disabled = true;
+    const album = await createAlbum(name);
+    if (album) {
+      closeModal();
+      await onCreated?.(album);
+    } else {
+      submitBtn.disabled = false;
+    }
+  };
+
+  submitBtn.addEventListener('click', submit);
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    if (e.key === 'Escape') closeModal();
+  });
+
+  setTimeout(() => nameInput.focus(), 0);
+}
+
+// ============================================================================
+// Edit modal
+// ============================================================================
+
 export async function openEditAlbum(albumId) {
-  // We need the album metadata itself (name, override state). Fetch
-  // albums list and match — simpler than a per-album GET.
-  const [albumsResp, tracksResp] = await Promise.all([
+  const [albumsResp, tracksResp, allTracks] = await Promise.all([
     fetch('/api/albums').then(r => r.ok ? r.json() : []),
     fetchAlbumTracks(albumId),
+    fetchTracks(),
   ]);
   const album = albumsResp.find(a => a.id === albumId);
   if (!album) return;
 
-  const state = {
+  const memberTracks = tracksResp.tracks || [];
+
+  const s = {
     album,
-    autoTracks: tracksResp.auto_tracks,
-    curatedIds: tracksResp.is_curated
-      ? [...tracksResp.curated_ids]
-      : tracksResp.auto_tracks.map(t => t.id), // seed curation with current auto list
-    wasCurated: tracksResp.is_curated,
+    // Every track in the library, used as the picker source.
+    allTracks,
+    // Current ordered selection for this album. The user toggles/reorders this.
+    memberIds: memberTracks.map(t => t.id),
+    // Snapshot at open time so we only PUT when the user actually changed things.
+    initialMemberIds: memberTracks.map(t => t.id),
+    // Search filter in the picker.
+    filter: '',
     coverBust: 0,
+    hasCover: Boolean(album.cover_path),
   };
 
-  buildModal(state);
+  buildEditModal(s);
 }
 
 function closeModal() {
@@ -53,7 +136,21 @@ function closeModal() {
   modalEl = null;
 }
 
-function buildModal(s) {
+// --- Change detection ---
+
+function tracksDirty(s) {
+  return !sameOrder(s.memberIds, s.initialMemberIds);
+}
+
+function sameOrder(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+// --- Rendering ---
+
+function buildEditModal(s) {
   const overlay = document.createElement('div');
   overlay.className = 'edit-modal-overlay';
   overlay.innerHTML = `
@@ -73,43 +170,31 @@ function buildModal(s) {
                 ${createIcon('upload', 13)} Upload
               </label>
               <input type="file" id="album-cover-file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" hidden>
-              <button class="edit-btn edit-btn-ghost" id="album-cover-reset" title="Use folder-detected art">
+              <button class="edit-btn edit-btn-ghost" id="album-cover-reset" title="Remove cover">
                 ${createIcon('rotate-ccw', 13)} Reset
               </button>
             </div>
-            <div class="album-edit-cover-hint">
-              ${s.album.cover_override_path
-                ? '<span class="pill-ok">custom</span> overriding folder art'
-                : 'using folder-detected art'}
+            <div class="album-edit-cover-hint" id="album-cover-hint">
+              ${coverHint(s)}
             </div>
           </div>
 
           <div class="album-edit-fields">
             <div class="edit-field">
-              <label for="album-edit-name">Display Name</label>
+              <label for="album-edit-name">Name</label>
               <input type="text" id="album-edit-name" value="${escapeHtml(s.album.name)}" autocomplete="off">
-              <div class="edit-field-hint">
-                Folder: <code>${escapeHtml(folderLabel(s.album.path))}</code>
-              </div>
-              ${s.album.display_name_override ? `
-                <div class="edit-field-hint edit-field-hint-muted">
-                  Default: <code>${escapeHtml(s.album.name_default || '')}</code>
-                </div>` : ''}
             </div>
 
             <div class="edit-field">
               <div class="track-picker-header">
                 <label>Tracks</label>
-                <span class="track-picker-mode" id="track-picker-mode">
-                  ${s.wasCurated ? 'curated' : 'auto (all tracks)'}
-                </span>
-                ${s.wasCurated ? `
-                  <button class="edit-btn edit-btn-ghost edit-btn-xs" id="album-tracks-reset" title="Revert to auto mode">
-                    ${createIcon('rotate-ccw', 12)} Reset to auto
-                  </button>` : ''}
+                <span class="track-picker-mode" id="track-picker-count">${memberCountLabel(s)}</span>
+              </div>
+              <div class="track-picker-search">
+                <input type="text" id="track-picker-filter" placeholder="Search tracks..." autocomplete="off">
               </div>
               <div class="track-picker-hint">
-                Drag to reorder. Toggle to include or exclude specific versions.
+                Drag included rows to reorder. Toggle to add or remove.
               </div>
               <ul class="track-picker-list" id="track-picker-list">
                 ${renderPickerRows(s)}
@@ -119,10 +204,10 @@ function buildModal(s) {
         </div>
       </div>
       <div class="edit-modal-footer">
-        ${s.album.display_name_override ? `
-          <button class="edit-btn edit-btn-ghost" id="album-name-reset" title="Restore folder name">
-            ${createIcon('rotate-ccw', 13)} Reset name
-          </button>` : '<span></span>'}
+        <button class="edit-btn edit-btn-ghost edit-btn-danger" id="album-delete"
+                title="Delete this album (tracks are not deleted)">
+          ${createIcon('trash', 13)} Delete album
+        </button>
         <div class="edit-modal-actions">
           <button class="edit-btn edit-btn-ghost" id="album-edit-cancel">Cancel</button>
           <button class="edit-btn edit-btn-primary" id="album-edit-save">Save</button>
@@ -133,49 +218,75 @@ function buildModal(s) {
   document.body.appendChild(overlay);
   modalEl = overlay;
 
-  wireModal(overlay, s);
+  wireEditModal(overlay, s);
 }
 
-// --- Rendering ---
+function memberCountLabel(s) {
+  const n = s.memberIds.length;
+  return `${n} track${n !== 1 ? 's' : ''}`;
+}
 
 function coverSrc(s) {
   const base = `/api/albums/${s.album.id}/cover`;
   return s.coverBust ? `${base}?v=${s.coverBust}` : base;
 }
 
-function folderLabel(path) {
-  if (!path) return '';
-  return path.replace(/\\/g, '/').split('/').slice(-1)[0] || path;
+function coverHint(s) {
+  return s.hasCover
+    ? '<span class="pill-ok">custom</span> uploaded cover'
+    : 'no cover — placeholder in use';
 }
 
 function renderPickerRows(s) {
-  // Union of auto tracks and any curated tracks not in auto (e.g. from
-  // another folder). Auto tracks determine the pool; curated order wins.
-  const autoIds = new Set(s.autoTracks.map(t => t.id));
-  const autoById = new Map(s.autoTracks.map(t => [t.id, t]));
-  const curatedSet = new Set(s.curatedIds);
+  const memberSet = new Set(s.memberIds);
+  const byId = new Map(s.allTracks.map(t => [t.id, t]));
 
-  // Ordered list: curated first (in curation order), then any auto tracks
-  // not yet included.
-  const ordered = [];
-  s.curatedIds.forEach(id => {
-    const t = autoById.get(id);
-    if (t) ordered.push(t);
-  });
-  s.autoTracks.forEach(t => {
-    if (!curatedSet.has(t.id)) ordered.push(t);
-  });
+  // Order the list: members first in their curated order, then non-members.
+  // Apply the search filter to both sections.
+  const filter = s.filter.trim().toLowerCase();
+  const matches = (t) => {
+    if (!filter) return true;
+    const hay = [t.display_name, t.filename, t.project_name, t.folder_name]
+      .filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(filter);
+  };
 
-  return ordered.map((t, idx) => {
-    const included = curatedSet.has(t.id);
+  const memberRows = s.memberIds
+    .map(id => byId.get(id))
+    .filter(Boolean)
+    .filter(matches);
+
+  const nonMemberRows = s.allTracks
+    .filter(t => !memberSet.has(t.id))
+    .filter(matches);
+
+  const ordered = [...memberRows, ...nonMemberRows];
+
+  if (!ordered.length) {
+    return `<li class="track-picker-empty">no tracks match "${escapeHtml(filter)}"</li>`;
+  }
+
+  return ordered.map(t => {
+    const included = memberSet.has(t.id);
     const label = t.display_name || t.filename;
     const { name: baseName, version } = parseVersion(label);
-    const sub = t.project_name ? `<span class="track-picker-sub">${escapeHtml(t.project_name)}</span>` : '';
-    const versionBadge = version ? `<span class="track-picker-version">${escapeHtml(version)}</span>` : '';
+    const subParts = [];
+    if (t.project_name) subParts.push(escapeHtml(t.project_name));
+    if (t.folder_name)  subParts.push(escapeHtml(t.folder_name));
+    const sub = subParts.length
+      ? `<span class="track-picker-sub">${subParts.join(' · ')}</span>`
+      : '';
+    const versionBadge = version
+      ? `<span class="track-picker-version">${escapeHtml(version)}</span>`
+      : '';
     return `
-      <li class="track-picker-row${included ? ' included' : ''}" draggable="true" data-track-id="${t.id}">
+      <li class="track-picker-row${included ? ' included' : ''}"
+          draggable="${included ? 'true' : 'false'}"
+          data-track-id="${t.id}"
+          data-included="${included ? '1' : '0'}">
         <span class="track-picker-grip">${createIcon('grip-vertical', 12)}</span>
-        <button class="track-picker-toggle" data-track-id="${t.id}" title="${included ? 'Remove from album' : 'Add to album'}">
+        <button class="track-picker-toggle" data-track-id="${t.id}"
+                title="${included ? 'Remove from album' : 'Add to album'}">
           ${included ? createIcon('check', 13) : createIcon('plus', 13)}
         </button>
         <span class="track-picker-name">
@@ -192,22 +303,12 @@ function refreshPickerList(overlay, s) {
   const list = overlay.querySelector('#track-picker-list');
   list.innerHTML = renderPickerRows(s);
   wirePicker(overlay, s);
-
-  // Update the mode label
-  const mode = overlay.querySelector('#track-picker-mode');
-  const curatedEqualsAuto = arraysEqual(s.curatedIds, s.autoTracks.map(t => t.id));
-  mode.textContent = curatedEqualsAuto ? 'auto (all tracks)' : 'curated';
-}
-
-function arraysEqual(a, b) {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
+  overlay.querySelector('#track-picker-count').textContent = memberCountLabel(s);
 }
 
 // --- Wiring ---
 
-function wireModal(overlay, s) {
+function wireEditModal(overlay, s) {
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) closeModal();
   });
@@ -219,16 +320,6 @@ function wireModal(overlay, s) {
     if (e.key === 'Escape') closeModal();
   });
 
-  // Name reset
-  const nameReset = overlay.querySelector('#album-name-reset');
-  if (nameReset) {
-    nameReset.addEventListener('click', async () => {
-      await updateAlbum(s.album.id, { display_name: null });
-      closeModal();
-      onSavedCallback?.({ coverChanged: false });
-    });
-  }
-
   // Cover upload
   const fileInput = overlay.querySelector('#album-cover-file');
   fileInput.addEventListener('change', async () => {
@@ -237,60 +328,61 @@ function wireModal(overlay, s) {
     const result = await uploadAlbumCover(s.album.id, file);
     if (result) {
       s.coverBust = Date.now();
-      s.album.cover_override_path = 'uploaded';
-      const preview = overlay.querySelector('#album-cover-preview');
-      preview.src = coverSrc(s);
-      const hint = overlay.querySelector('.album-edit-cover-hint');
-      hint.innerHTML = '<span class="pill-ok">custom</span> overriding folder art';
+      s.hasCover = true;
+      overlay.querySelector('#album-cover-preview').src = coverSrc(s);
+      overlay.querySelector('#album-cover-hint').innerHTML = coverHint(s);
     }
     fileInput.value = '';
   });
 
   // Cover reset
   overlay.querySelector('#album-cover-reset').addEventListener('click', async () => {
+    if (!s.hasCover && s.coverBust === 0) return;
     const result = await deleteAlbumCover(s.album.id);
     if (result) {
       s.coverBust = Date.now();
-      s.album.cover_override_path = null;
-      const preview = overlay.querySelector('#album-cover-preview');
-      preview.src = coverSrc(s);
-      const hint = overlay.querySelector('.album-edit-cover-hint');
-      hint.textContent = 'using folder-detected art';
+      s.hasCover = false;
+      overlay.querySelector('#album-cover-preview').src = coverSrc(s);
+      overlay.querySelector('#album-cover-hint').innerHTML = coverHint(s);
     }
   });
 
-  // Track picker wiring (toggle + drag)
+  // Picker search
+  const filterInput = overlay.querySelector('#track-picker-filter');
+  filterInput.addEventListener('input', () => {
+    s.filter = filterInput.value;
+    refreshPickerList(overlay, s);
+  });
+
   wirePicker(overlay, s);
 
-  // Reset-to-auto button
-  const tracksReset = overlay.querySelector('#album-tracks-reset');
-  if (tracksReset) {
-    tracksReset.addEventListener('click', () => {
-      s.curatedIds = s.autoTracks.map(t => t.id);
-      s.wasCurated = false;
-      // Also re-render so the "Reset to auto" button disappears
-      const list = overlay.querySelector('#track-picker-list');
-      list.innerHTML = renderPickerRows(s);
-      wirePicker(overlay, s);
-      const modeRow = overlay.querySelector('.track-picker-header');
-      const oldBtn = modeRow.querySelector('#album-tracks-reset');
-      if (oldBtn) oldBtn.remove();
-      overlay.querySelector('#track-picker-mode').textContent = 'auto (all tracks)';
-    });
-  }
+  // Delete album
+  overlay.querySelector('#album-delete').addEventListener('click', async () => {
+    const ok = confirm(
+      `Delete album "${s.album.name}"?\n\nTracks themselves will not be removed.`
+    );
+    if (!ok) return;
+    const result = await deleteAlbum(s.album.id);
+    if (result) {
+      closeModal();
+      onSavedCallback?.({ coverChanged: false, deleted: true });
+    }
+  });
 
   // Save
   overlay.querySelector('#album-edit-save').addEventListener('click', async () => {
     const newName = nameInput.value.trim();
-    await updateAlbum(s.album.id, {
-      display_name: newName && newName !== (s.album.name_default || '') ? newName : (newName || null),
-    });
+    if (!newName) {
+      nameInput.focus();
+      return;
+    }
+    if (newName !== s.album.name) {
+      await updateAlbum(s.album.id, { name: newName });
+    }
 
-    // Only push curation if it actually differs from auto
-    const autoIds = s.autoTracks.map(t => t.id);
-    const curatedEqualsAuto = arraysEqual(s.curatedIds, autoIds);
-    const idsToSend = curatedEqualsAuto ? [] : s.curatedIds;
-    await setAlbumTracks(s.album.id, idsToSend);
+    if (tracksDirty(s)) {
+      await setAlbumTracks(s.album.id, s.memberIds);
+    }
 
     closeModal();
     onSavedCallback?.({ coverChanged: s.coverBust > 0 });
@@ -304,20 +396,24 @@ function wirePicker(overlay, s) {
   list.querySelectorAll('.track-picker-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = parseInt(btn.dataset.trackId, 10);
-      const idx = s.curatedIds.indexOf(id);
+      const idx = s.memberIds.indexOf(id);
       if (idx >= 0) {
-        s.curatedIds.splice(idx, 1);
+        s.memberIds.splice(idx, 1);
       } else {
-        s.curatedIds.push(id);
+        s.memberIds.push(id);
       }
       refreshPickerList(overlay, s);
     });
   });
 
-  // Drag-to-reorder. Only reorders entries that are currently included.
+  // Drag-to-reorder (members only).
   let dragId = null;
   list.querySelectorAll('.track-picker-row').forEach(row => {
     row.addEventListener('dragstart', (e) => {
+      if (row.dataset.included !== '1') {
+        e.preventDefault();
+        return;
+      }
       dragId = parseInt(row.dataset.trackId, 10);
       row.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
@@ -328,37 +424,33 @@ function wirePicker(overlay, s) {
       list.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
     });
     row.addEventListener('dragover', (e) => {
-      e.preventDefault();
       if (dragId == null) return;
-      const target = row;
-      if (target.dataset.trackId && parseInt(target.dataset.trackId, 10) !== dragId) {
-        list.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
-        target.classList.add('drop-target');
-      }
-    });
-    row.addEventListener('drop', (e) => {
-      e.preventDefault();
-      if (dragId == null) return;
+      if (row.dataset.included !== '1') return;
       const targetId = parseInt(row.dataset.trackId, 10);
       if (targetId === dragId) return;
-      reorderCurated(s, dragId, targetId);
+      e.preventDefault();
+      list.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+      row.classList.add('drop-target');
+    });
+    row.addEventListener('drop', (e) => {
+      if (dragId == null) return;
+      if (row.dataset.included !== '1') return;
+      const targetId = parseInt(row.dataset.trackId, 10);
+      if (targetId === dragId) return;
+      e.preventDefault();
+      reorderMembers(s, dragId, targetId);
       refreshPickerList(overlay, s);
     });
   });
 }
 
-function reorderCurated(s, dragId, targetId) {
-  // Only reorder among currently-curated tracks. If the dragged item
-  // isn't curated, dropping inserts it at the target's position.
-  const curIdx = s.curatedIds.indexOf(dragId);
-  if (curIdx >= 0) s.curatedIds.splice(curIdx, 1);
-
-  const targetIdx = s.curatedIds.indexOf(targetId);
-  if (targetIdx >= 0) {
-    s.curatedIds.splice(targetIdx, 0, dragId);
-  } else {
-    s.curatedIds.push(dragId);
-  }
+function reorderMembers(s, dragId, targetId) {
+  const curIdx = s.memberIds.indexOf(dragId);
+  const targetIdx = s.memberIds.indexOf(targetId);
+  if (curIdx < 0 || targetIdx < 0) return;
+  s.memberIds.splice(curIdx, 1);
+  const newTargetIdx = s.memberIds.indexOf(targetId);
+  s.memberIds.splice(newTargetIdx, 0, dragId);
 }
 
 // --- utils ---

@@ -9,7 +9,7 @@ import { state } from './state.js';
 import { formatTime, formatDurationLong, formatFileSize, parseVersion, groupTracksByVersion } from './utils.js';
 import { fetchAlbums, fetchTracks, fetchLibrarySummary, fetchAlbumTracks } from './api.js';
 import { createIcon } from './icons.js';
-import { renderDitherFrame } from './dither-bg.js';
+import { renderDitherFrame, ditherCanvasHtml, bindDitherCanvases } from './dither-bg.js';
 import { openEditTrack } from './edit-track.js';
 
 const content = document.getElementById('content');
@@ -117,18 +117,12 @@ function handleSort(field) {
 
 // --- Shared helpers ---
 
-function thumbHtml(albumId) {
-  // Always include both: a placeholder (shown by default) and an img that
-  // hides the placeholder on successful load of real art. The img's onload
-  // checks dimensions to detect the SVG placeholder and skips it.
-  if (albumId) {
-    return `
-      <span class="track-thumb-placeholder">${lucideIcon('music', 14)}</span>
-      <img src="/api/albums/${albumId}/cover" alt="" loading="lazy"
-           onload="if(this.naturalWidth>200){this.style.display='block';this.previousElementSibling.style.display='none'}"
-           style="display:none">`;
-  }
-  return `<span class="track-thumb-placeholder">${lucideIcon('music', 14)}</span>`;
+function thumbHtml(track) {
+  // Seed the dither by project id so every version of the same project
+  // shares a pattern — it reads as a "group" at a glance. Fall back to
+  // the track id for loose tracks (and to 1 if neither is available).
+  const seed = (track && (track.project_id || track.id)) || 1;
+  return ditherCanvasHtml(seed);
 }
 
 function trackRowHtml(t, i, { showTags = true } = {}) {
@@ -139,7 +133,7 @@ function trackRowHtml(t, i, { showTags = true } = {}) {
 
   const subParts = [];
   if (t.project_name) subParts.push(t.project_name);
-  if (t.album_name)   subParts.push(t.album_name);
+  if (t.folder_name)  subParts.push(t.folder_name);
   const subText = subParts.join('<span class="track-sub-sep">•</span>');
 
   const isActive = state.currentIndex === i;
@@ -162,7 +156,7 @@ function trackRowHtml(t, i, { showTags = true } = {}) {
   return `
     <div class="track-row${isActive ? ' track-active' : ''}" data-index="${i}" data-track-id="${t.id}">
       <span class="track-indicator">${indicator}</span>
-      <div class="track-thumb">${thumbHtml(t.album_id)}</div>
+      <div class="track-thumb">${thumbHtml(t)}</div>
       <div class="track-info">
         <span class="track-name">${trackName}</span>
         ${subText ? `<span class="track-sub">${subText}</span>` : ''}
@@ -191,6 +185,8 @@ function bindTrackRows() {
     });
   });
   bindEditButtons();
+  // Kick off lazy dither rendering for every placeholder in the new DOM.
+  bindDitherCanvases(content);
 }
 
 function bindEditButtons() {
@@ -221,14 +217,14 @@ function renderGroupedTracksHtml(tracks, { showTags = true } = {}) {
 
     const subParts = [];
     if (firstTrack.project_name) subParts.push(firstTrack.project_name);
-    if (firstTrack.album_name)   subParts.push(firstTrack.album_name);
+    if (firstTrack.folder_name)  subParts.push(firstTrack.folder_name);
     const subText = subParts.join('<span class="track-sub-sep">•</span>');
     const dateStr = firstTrack.modified_at ? new Date(firstTrack.modified_at * 1000).toLocaleDateString() : '';
 
     const groupHeader = `
       <div class="track-group-header" data-group-id="${groupId}" data-track-id="${firstTrack.id}">
         <span class="track-group-toggle">${lucideIcon('chevron-right', 14)}</span>
-        <div class="track-thumb">${thumbHtml(firstTrack.album_id)}</div>
+        <div class="track-thumb">${thumbHtml(firstTrack)}</div>
         <div class="track-info">
           <span class="track-name">${trackName}</span>
           ${subText ? `<span class="track-sub">${subText}</span>` : ''}
@@ -262,7 +258,7 @@ function renderGroupedTracksHtml(tracks, { showTags = true } = {}) {
       return `
         <div class="track-row track-version-row${isActive ? ' track-active' : ''}" data-index="${t.originalIndex}" data-track-id="${t.id}" data-group-id="${groupId}">
           <span class="track-indicator">${indicator}</span>
-          <div class="track-thumb">${thumbHtml(t.album_id)}</div>
+          <div class="track-thumb">${thumbHtml(t)}</div>
           <div class="track-info">
             <span class="track-name">
               <span class="track-version-label">${version}</span>
@@ -359,8 +355,8 @@ export function renderTrackList(tracks) {
   const totalDuration = tracks.reduce((sum, t) => sum + (t.duration_seconds || 0), 0);
   const sortIcon = state.sortAsc ? lucideIcon('arrow-up', 12) : lucideIcon('arrow-down', 12);
 
-  // Unique albums and projects
-  const albumSet = new Set(tracks.map(t => t.album_name).filter(Boolean));
+  // Unique folders and projects
+  const folderSet = new Set(tracks.map(t => t.folder_name).filter(Boolean));
   const projectSet = new Set(tracks.map(t => t.project_name).filter(Boolean));
   const totalFileSize = tracks.reduce((sum, t) => sum + (t.file_size_bytes || 0), 0);
   const unexportedCount = state.librarySummary?.total_unexported || 0;
@@ -386,8 +382,8 @@ export function renderTrackList(tracks) {
         <span class="stat-label">projects</span>
       </div>
       <div class="stat-item">
-        <span class="stat-value">${albumSet.size}</span>
-        <span class="stat-label">albums</span>
+        <span class="stat-value">${folderSet.size}</span>
+        <span class="stat-label">folders</span>
       </div>
       <div class="stat-item">
         <span class="stat-value">${unexportedCount}</span>
@@ -539,7 +535,7 @@ export async function refreshCurrentView() {
       const { albumId, albumName } = cv.params || {};
       if (albumId == null) return;
       const data = await fetchAlbumTracks(albumId);
-      renderAlbumExpanded(albumName, `/api/albums/${albumId}/cover`, data.tracks, { isCurated: data.is_curated, albumId });
+      renderAlbumExpanded(albumName, `/api/albums/${albumId}/cover`, data.tracks, { albumId });
       return;
     }
     case 'search': {
@@ -580,8 +576,26 @@ export async function refreshCurrentView() {
 
 export function renderAlbums(albums) {
   state.currentView = { type: 'albums', params: {} };
+
+  const header = `
+    <div class="view-header view-header-with-action">
+      <span>Albums</span>
+      <button class="edit-btn edit-btn-primary" id="albums-create-btn">
+        ${lucideIcon('plus', 13)} New album
+      </button>
+    </div>`;
+
   if (!albums.length) {
-    content.innerHTML = `<div class="empty-state"><p>no albums found</p></div>`;
+    content.innerHTML = `
+      ${header}
+      <div class="empty-state">
+        <p>no albums yet</p>
+        <p class="text-muted">albums are your playlists — create one to start collecting tracks</p>
+        <button class="edit-btn edit-btn-primary empty-state-cta" id="albums-create-empty">
+          ${lucideIcon('plus', 13)} Create album
+        </button>
+      </div>`;
+    bindAlbumsCreate(content);
     return;
   }
 
@@ -602,7 +616,7 @@ export function renderAlbums(albums) {
         </div>
       </div>
       <div class="album-info">
-        <div class="album-name">${a.name}${a.is_curated ? ` <span class="album-curated-tag" title="Curated track list">curated</span>` : ''}</div>
+        <div class="album-name">${a.name}</div>
         <div class="album-meta">
           <span>${trackLabel}</span>
           <span class="album-meta-sep">·</span>
@@ -618,7 +632,8 @@ export function renderAlbums(albums) {
     </div>`;
   }).join('');
 
-  content.innerHTML = `<div class="view-header">Albums</div><div class="card-grid">${cards}</div>`;
+  content.innerHTML = `${header}<div class="card-grid">${cards}</div>`;
+  bindAlbumsCreate(content);
 
   // Lazy-render dither canvases via IntersectionObserver — only generates
   // the dither frame when the card scrolls into view, keeping initial render fast.
@@ -710,7 +725,24 @@ async function openAlbumView(card) {
   const cover = `/api/albums/${albumId}/cover`;
 
   const data = await fetchAlbumTracks(albumId);
-  renderAlbumExpanded(albumName, cover, data.tracks, { isCurated: data.is_curated, albumId });
+  renderAlbumExpanded(albumName, cover, data.tracks, { albumId });
+}
+
+/**
+ * Wire the "Create album" buttons in the albums header and empty state.
+ * Opens the create-album flow, then refreshes the albums view.
+ */
+function bindAlbumsCreate(scope) {
+  const handlers = async () => {
+    const { openCreateAlbum } = await import('./edit-album.js');
+    openCreateAlbum(async () => {
+      const albums = await fetchAlbums();
+      renderAlbums(albums);
+    });
+  };
+  scope.querySelectorAll('#albums-create-btn, #albums-create-empty').forEach(btn => {
+    btn.addEventListener('click', handlers);
+  });
 }
 
 /**
@@ -754,37 +786,45 @@ function extractDominantColor(img) {
 
 export function renderAlbumExpanded(albumName, coverUrl, tracks, opts = {}) {
   state.tracks = tracks;
-  const { isCurated = false, albumId = null } = opts;
+  const { albumId = null } = opts;
   state.currentView = { type: 'album-expanded', params: { albumId, albumName } };
   const totalDuration = tracks.reduce((sum, t) => sum + (t.duration_seconds || 0), 0);
 
   // Add originalIndex to tracks for grouping
   const tracksWithIndex = tracks.map((t, i) => ({ ...t, originalIndex: i }));
-  const rows = renderGroupedTracksHtml(tracksWithIndex, { showTags: false });
+  const rows = tracks.length
+    ? renderGroupedTracksHtml(tracksWithIndex, { showTags: false })
+    : '';
 
   const editBtn = albumId != null
     ? `<button class="icon-btn album-expanded-edit" id="album-expanded-edit" title="Edit album" data-tooltip="Edit album">${lucideIcon('pencil', 15)}</button>`
     : '';
+
+  const body = tracks.length
+    ? `<div class="track-list">${rows}</div>`
+    : `
+      <div class="empty-state">
+        <p>no tracks in this album yet</p>
+        <p class="text-muted">open the edit modal to add tracks from your library</p>
+      </div>`;
 
   content.innerHTML = `
     <div class="album-expanded">
       <button class="back-btn" id="back-to-albums"><span class="back-btn-icon">${lucideIcon('arrow-left', 14)}</span> albums</button>
       <div class="album-expanded-header">
         <div class="album-expanded-art">
-          <img src="${coverUrl}" alt="${albumName}">
+          ${ditherCanvasHtml(albumId || 1)}
+          <img src="${coverUrl}" alt="${albumName}" crossorigin="anonymous">
         </div>
         <div class="album-expanded-info">
-          <div class="album-expanded-name">
-            ${albumName}
-            ${isCurated ? ` <span class="album-curated-tag" title="Curated track list">curated</span>` : ''}
-          </div>
+          <div class="album-expanded-name">${albumName}</div>
           <div class="album-expanded-meta">
             ${tracks.length} track${tracks.length !== 1 ? 's' : ''} · ${formatTime(totalDuration)}
           </div>
         </div>
         ${editBtn}
       </div>
-      <div class="track-list">${rows}</div>
+      ${body}
     </div>`;
 
   document.getElementById('back-to-albums').addEventListener('click', async () => {
@@ -800,6 +840,19 @@ export function renderAlbumExpanded(albumName, coverUrl, tracks, opts = {}) {
     });
   }
 
+  // Hide the <img> layer when the server returned the small SVG placeholder
+  // so the dither canvas underneath shows through. Real uploaded art wins.
+  const expandedArt = content.querySelector('.album-expanded-art');
+  if (expandedArt) {
+    const img = expandedArt.querySelector('img');
+    img.addEventListener('load', () => {
+      const isPlaceholder = img.naturalWidth <= 200 && img.naturalHeight <= 200;
+      if (isPlaceholder) img.style.display = 'none';
+    });
+    img.addEventListener('error', () => { img.style.display = 'none'; });
+  }
+
+  bindDitherCanvases(content);
   bindGroupHeaders();
   bindTrackRows();
 }
@@ -816,7 +869,7 @@ export function renderProjects(projects) {
   const cards = projects.map(p => `
     <div class="project-card" data-project-id="${p.id}">
       <div class="project-name">${p.name}</div>
-      <div class="project-meta">${p.album_name ? p.album_name + ' · ' : ''}${p.track_count} track${p.track_count !== 1 ? 's' : ''}</div>
+      <div class="project-meta">${p.folder_name ? p.folder_name + ' · ' : ''}${p.track_count} track${p.track_count !== 1 ? 's' : ''}</div>
     </div>
   `).join('');
 

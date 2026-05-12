@@ -253,3 +253,68 @@ export function renderDitherFrame(canvas, seed) {
 
   ctx.putImageData(imgData, 0, 0);
 }
+
+// ----------------------------------------------------------------------------
+// Generic dither placeholder (track thumbs, album-expanded art, player art).
+//
+// Emits a canvas element with `class="dither-canvas" data-seed="..."`, then a
+// shared IntersectionObserver lazily renders each one when it scrolls into
+// view. Canvases are sized from their rendered layout size on first paint so
+// the pattern stays crisp at any CSS dimension.
+// ----------------------------------------------------------------------------
+
+let _sharedObserver = null;
+
+function getSharedObserver() {
+  if (_sharedObserver) return _sharedObserver;
+  _sharedObserver = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const canvas = entry.target;
+      if (canvas.dataset.rendered === '1') {
+        obs.unobserve(canvas);
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const w = Math.max(16, Math.round(rect.width));
+      const h = Math.max(16, Math.round(rect.height));
+      if (!w || !h) return; // not laid out yet; let it retry on next entry
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      const seed = parseInt(canvas.dataset.seed || '1', 10) || 1;
+      renderDitherFrame(canvas, seed);
+      canvas.dataset.rendered = '1';
+      obs.unobserve(canvas);
+    });
+  }, { rootMargin: '200px' });
+  return _sharedObserver;
+}
+
+/**
+ * Return markup for a seeded dither placeholder. Size is driven by the
+ * parent container's CSS — the canvas stretches to fill it.
+ *
+ * @param {number|string} seed — stable value used to derive the pattern
+ * @returns {string} HTML for a single canvas element
+ */
+export function ditherCanvasHtml(seed) {
+  const s = Number(seed) || 1;
+  return `<canvas class="dither-canvas" data-seed="${s}"></canvas>`;
+}
+
+/**
+ * Attach the shared lazy-render observer to any `.dither-canvas` elements
+ * inside `root` that haven't been rendered yet. Call this after injecting
+ * markup that contains dither canvases.
+ *
+ * @param {HTMLElement | Document} root
+ */
+export function bindDitherCanvases(root) {
+  if (!root) return;
+  const obs = getSharedObserver();
+  root.querySelectorAll('canvas.dither-canvas:not([data-rendered="1"])').forEach(c => {
+    obs.observe(c);
+  });
+}

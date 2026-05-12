@@ -525,3 +525,35 @@
   top: 0;
   right: 0;
 }
+
+/* --- Albums header with inline Create button --- */
+
+.view-header-with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.empty-state-cta {
+  margin-top: 12px;
+}
+
+/* Dither canvas inside the big album-expanded art block: sits under the
+   <img> so uploaded covers render on top, placeholder shows the pattern. */
+.album-expanded-art {
+  position: relative;
+}
+
+.album-expanded-art canvas.dither-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.album-expanded-art img {
+  position: relative;
+  z-index: 1;
+}

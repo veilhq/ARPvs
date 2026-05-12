@@ -448,3 +448,55 @@
 .edit-modal-header {
   gap: 10px;
 }
+
+/* Disabled state for edit buttons */
+.edit-btn[disabled] {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.edit-btn[disabled]:hover {
+  color: var(--text-muted);
+  border-color: var(--border-strong);
+}
+
+/* --- Create album + danger button --- */
+
+.edit-btn-danger {
+  color: #c84a4a;
+}
+
+.edit-btn-danger:hover {
+  color: #ff6a6a;
+  border-color: #c84a4a;
+}
+
+/* Search input inside the track picker */
+.track-picker-search {
+  display: flex;
+}
+
+.track-picker-search input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  color: var(--text-bright);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.track-picker-search input:focus {
+  border-color: var(--accent);
+}
+
+.track-picker-empty {
+  list-style: none;
+  padding: 14px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+}
