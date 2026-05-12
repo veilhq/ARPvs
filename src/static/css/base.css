@@ -31,6 +31,31 @@ html, body {
   overflow: hidden;
 }
 
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--warm);
+}
+
+/* Firefox scrollbars */
+* {
+  scrollbar-color: var(--accent) var(--bg-surface);
+  scrollbar-width: thin;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
