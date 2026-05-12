@@ -261,6 +261,16 @@ body {
 .sort-panel-item .sort-arrow {
   font-size: 10px;
   color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+}
+
+.sort-panel-item .sort-arrow svg {
+  width: 100%;
+  height: 100%;
 }
 
 /* Wrapper for relative positioning of the sort panel */
@@ -308,6 +318,16 @@ body {
   font-size: 11px;
   text-align: center;
   user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.track-group-toggle svg {
+  width: 100%;
+  height: 100%;
 }
 
 .track-group-count {
@@ -358,7 +378,7 @@ body {
 
 .track-row {
   display: grid;
-  grid-template-columns: 20px 36px 1fr auto auto;
+  grid-template-columns: 20px 36px 1fr auto auto auto;
   align-items: center;
   gap: 12px;
   padding: 6px 12px;
@@ -380,9 +400,33 @@ body {
   color: var(--text-dim);
   font-size: 11px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.track-indicator-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.track-indicator-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.track-indicator-changed svg {
+  color: var(--warm);
 }
 
 .track-active .track-indicator {
+  color: var(--accent);
+}
+
+.track-active .track-indicator-icon svg {
   color: var(--accent);
 }
 
@@ -423,6 +467,11 @@ body {
   font-size: 14px;
 }
 
+.track-thumb-placeholder svg {
+  width: 18px;
+  height: 18px;
+}
+
 /* --- Track info (two-line) --- */
 
 .track-info {
@@ -440,9 +489,14 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.track-version-badge {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .track-version {
@@ -458,6 +512,22 @@ body {
   border: 1px solid var(--accent-border);
   flex-shrink: 0;
   white-space: nowrap;
+}
+
+.track-versions-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 2px;
+  background: rgba(0, 255, 65, 0.1);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-left: 6px;
 }
 
 .track-sub {
@@ -625,9 +695,29 @@ body {
   padding: 4px 0;
   margin-bottom: 16px;
   transition: color 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.back-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.back-btn-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .back-btn:hover {
+  color: var(--accent);
+}
+
+.back-btn:hover .back-btn-icon svg {
   color: var(--accent);
 }
 
@@ -730,6 +820,16 @@ body {
 .player-art-placeholder {
   color: var(--text-dim);
   font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.player-art-placeholder svg {
+  width: 20px;
+  height: 20px;
 }
 
 .player-track-info {

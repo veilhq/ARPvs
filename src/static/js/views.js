@@ -18,6 +18,23 @@ export function setPlayTrack(fn) {
   _playTrack = fn;
 }
 
+// --- Icon helpers ---
+
+function lucideIcon(name, size = 16) {
+  const icons = {
+    'play': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`,
+    'chevron-down': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
+    'chevron-right': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`,
+    'music': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>`,
+    'arrow-up': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`,
+    'arrow-down': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>`,
+    'arrow-left': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`,
+    'dot': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"></circle></svg>`,
+    'edit': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
+  };
+  return icons[name] || '';
+}
+
 // --- Sort ---
 
 export function sortTracks(tracks) {
@@ -59,7 +76,7 @@ function handleSort(field) {
 function thumbHtml(albumId) {
   return albumId
     ? `<img src="/api/albums/${albumId}/cover" alt="" loading="lazy">`
-    : `<span class="track-thumb-placeholder">♩</span>`;
+    : `<span class="track-thumb-placeholder">${lucideIcon('music', 18)}</span>`;
 }
 
 function trackRowHtml(t, i, { showTags = true } = {}) {
@@ -74,7 +91,14 @@ function trackRowHtml(t, i, { showTags = true } = {}) {
   const subText = subParts.join('<span class="track-sub-sep">•</span>');
 
   const isActive = state.currentIndex === i;
-  const indicator = isActive ? '▶' : (t.is_changed ? '~' : '·');
+  let indicator = '';
+  if (isActive) {
+    indicator = `<span class="track-indicator-icon">${lucideIcon('play', 14)}</span>`;
+  } else if (t.is_changed) {
+    indicator = `<span class="track-indicator-icon track-indicator-changed">${lucideIcon('edit', 14)}</span>`;
+  } else {
+    indicator = `<span class="track-indicator-icon">${lucideIcon('dot', 6)}</span>`;
+  }
 
   // Parse version from display name
   const { name: trackName, version } = parseVersion(t.display_name || t.filename);
@@ -87,11 +111,11 @@ function trackRowHtml(t, i, { showTags = true } = {}) {
       <span class="track-indicator">${indicator}</span>
       <div class="track-thumb">${thumbHtml(t.album_id)}</div>
       <div class="track-info">
-        <span class="track-name">
-          ${trackName}
-          ${version ? `<span class="track-version">${version}</span>` : ''}
-        </span>
+        <span class="track-name">${trackName}</span>
         ${subText ? `<span class="track-sub">${subText}</span>` : ''}
+      </div>
+      <div class="track-version-badge">
+        ${version ? `<span class="track-version">${version}</span>` : ''}
       </div>
       <span class="track-tags">${tagHtml}</span>
       <span class="track-metadata">
@@ -122,7 +146,7 @@ export function renderTrackList(tracks) {
   }
 
   const totalDuration = tracks.reduce((sum, t) => sum + (t.duration_seconds || 0), 0);
-  const sortIcon = state.sortAsc ? '↑' : '↓';
+  const sortIcon = state.sortAsc ? lucideIcon('arrow-up', 12) : lucideIcon('arrow-down', 12);
 
   const sortFields = [
     { key: 'name',     label: 'name' },
@@ -186,24 +210,33 @@ export function renderTrackList(tracks) {
 
       const groupHeader = `
         <div class="track-group-header" data-group-id="${groupId}">
-          <span class="track-group-toggle">▶</span>
+          <span class="track-group-toggle">${lucideIcon('chevron-right', 14)}</span>
           <div class="track-thumb">${thumbHtml(firstTrack.album_id)}</div>
           <div class="track-info">
             <span class="track-name">${trackName}</span>
             ${subText ? `<span class="track-sub">${subText}</span>` : ''}
+          </div>
+          <div class="track-version-badge">
+            <span class="track-versions-tag">${group.tracks.length} versions</span>
           </div>
           <span class="track-tags"></span>
           <span class="track-metadata">
             <span class="track-duration" title="Duration">${formatTime(firstTrack.duration_seconds)}</span>
             ${dateStr ? `<span class="track-date" title="Modified">${dateStr}</span>` : ''}
           </span>
-          <span class="track-group-count">${group.tracks.length} versions</span>
         </div>`;
 
-      const versionRows = group.tracks.map((t, vIdx) => {
+      const versionRows = group.tracks.map((t) => {
         const { version } = parseVersion(t.display_name || t.filename);
         const isActive = state.currentIndex === t.originalIndex;
-        const indicator = isActive ? '▶' : (t.is_changed ? '~' : '·');
+        let indicator = '';
+        if (isActive) {
+          indicator = `<span class="track-indicator-icon">${lucideIcon('play', 14)}</span>`;
+        } else if (t.is_changed) {
+          indicator = `<span class="track-indicator-icon track-indicator-changed">${lucideIcon('edit', 14)}</span>`;
+        } else {
+          indicator = `<span class="track-indicator-icon">${lucideIcon('dot', 6)}</span>`;
+        }
         
         // Format date for version row
         const versionDateStr = t.modified_at ? new Date(t.modified_at * 1000).toLocaleDateString() : '';
@@ -257,7 +290,7 @@ export function renderTrackList(tracks) {
       const toggle = header.querySelector('.track-group-toggle');
 
       versions.classList.toggle('collapsed');
-      toggle.textContent = versions.classList.contains('collapsed') ? '▶' : '▼';
+      toggle.innerHTML = versions.classList.contains('collapsed') ? lucideIcon('chevron-right', 14) : lucideIcon('chevron-down', 14);
     });
   });
 
@@ -311,7 +344,7 @@ export function renderAlbumExpanded(albumName, coverUrl, tracks) {
 
   content.innerHTML = `
     <div class="album-expanded">
-      <button class="back-btn" id="back-to-albums">← albums</button>
+      <button class="back-btn" id="back-to-albums"><span class="back-btn-icon">${lucideIcon('arrow-left', 14)}</span> albums</button>
       <div class="album-expanded-header">
         <div class="album-expanded-art">
           <img src="${coverUrl}" alt="${albumName}">
