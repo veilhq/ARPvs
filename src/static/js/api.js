@@ -23,6 +23,10 @@ export async function fetchProjects() {
   return (await get('/api/projects')) ?? [];
 }
 
+export async function fetchUnexportedProjects() {
+  return (await get('/api/unexported-projects')) ?? [];
+}
+
 export async function fetchTags() {
   return (await get('/api/tags')) ?? [];
 }

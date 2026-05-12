@@ -10,7 +10,16 @@ export const state = {
   currentTrack: null,
   currentIndex: -1,
   isPlaying: false,
-  sortBy: 'name',     // 'name' | 'project' | 'duration' | 'date'
-  sortAsc: true,
+  sortBy: 'date',     // 'name' | 'project' | 'duration' | 'date'
+  sortAsc: false,
   trackTags: {},      // { [trackId]: [{id, name, color}] }
+  
+  // Playback modes
+  shuffle: false,     // Shuffle playback
+  loopMode: 'off',    // 'off' | 'one' | 'all'
+  
+  // Album/collection playback
+  playlistTracks: null,  // Tracks for current album/collection (null = use main tracks)
+  playlistName: null,    // Name of current album/collection
 };
+

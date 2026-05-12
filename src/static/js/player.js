@@ -17,6 +17,11 @@ function lucideIcon(name, size = 16) {
     'play': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`,
     'pause': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`,
     'music': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>`,
+    'skip-back': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="4" x2="5" y2="20"></line></svg>`,
+    'skip-forward': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="4" x2="19" y2="20"></line></svg>`,
+    'shuffle': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 3 5"></polyline><polyline points="21 17 15 11 21 5"></polyline><line x1="3" y1="5" x2="3" y2="19"></line><line x1="21" y1="5" x2="21" y2="19"></line></svg>`,
+    'repeat': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 2 21 6 17 10"></polyline><path d="M3 11v-1a4 4 0 0 1 4-4h14"></path><polyline points="7 22 3 18 7 14"></polyline><path d="M21 13v1a4 4 0 0 1-4 4H3"></path></svg>`,
+    'repeat-1': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v7a5 5 0 0 0 5 5h12"></path><polyline points="16 10 22 4 16 -2"></polyline><text x="5" y="15" font-size="12" font-weight="bold">1</text></svg>`,
   };
   return icons[name] || '';
 }
@@ -108,15 +113,62 @@ export function togglePlay() {
   }
 }
 
+export function toggleShuffle() {
+  state.shuffle = !state.shuffle;
+  return state.shuffle;
+}
+
+export function toggleLoop() {
+  const modes = ['off', 'one', 'all'];
+  const currentIdx = modes.indexOf(state.loopMode);
+  state.loopMode = modes[(currentIdx + 1) % modes.length];
+  return state.loopMode;
+}
+
+export function playAlbum(tracks, albumName) {
+  if (!tracks || tracks.length === 0) return;
+  state.playlistTracks = tracks;
+  state.playlistName = albumName;
+  playTrack(0);
+}
+
+export function clearPlaylist() {
+  state.playlistTracks = null;
+  state.playlistName = null;
+}
+
 export function playNext() {
-  if (state.currentIndex < state.tracks.length - 1) {
-    playTrack(state.currentIndex + 1);
+  const tracks = state.playlistTracks || state.tracks;
+  
+  if (state.loopMode === 'one') {
+    // Loop one track - restart it
+    playTrack(state.currentIndex);
+    return;
+  }
+  
+  if (state.shuffle) {
+    // Random next track
+    const nextIndex = Math.floor(Math.random() * tracks.length);
+    playTrack(nextIndex);
+  } else {
+    // Sequential next
+    if (state.currentIndex < tracks.length - 1) {
+      playTrack(state.currentIndex + 1);
+    } else if (state.loopMode === 'all') {
+      // Loop back to start
+      playTrack(0);
+    }
   }
 }
 
 export function playPrev() {
+  const tracks = state.playlistTracks || state.tracks;
+  
   if (state.currentIndex > 0) {
     playTrack(state.currentIndex - 1);
+  } else if (state.loopMode === 'all') {
+    // Loop back to end
+    playTrack(tracks.length - 1);
   }
 }
 

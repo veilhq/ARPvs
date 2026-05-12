@@ -6,13 +6,14 @@
  */
 
 import { state } from './state.js';
-import { fetchTracks, fetchAlbums, fetchProjects, searchTracks } from './api.js';
+import { fetchTracks, fetchAlbums, fetchProjects, fetchUnexportedProjects, searchTracks } from './api.js';
 import {
   renderTrackList,
   renderAlbums,
   renderProjects,
   renderCollections,
   renderFavorites,
+  renderUnexportedProjects,
 } from './views.js';
 import { togglePlay, playNext, playPrev } from './player.js';
 
@@ -43,6 +44,11 @@ sidebarLinks.forEach(link => {
       case 'projects': {
         const projects = await fetchProjects();
         renderProjects(projects);
+        break;
+      }
+      case 'unexported': {
+        const projects = await fetchUnexportedProjects();
+        renderUnexportedProjects(projects);
         break;
       }
       case 'collections':

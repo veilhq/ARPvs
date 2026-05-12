@@ -31,6 +31,7 @@ function lucideIcon(name, size = 16) {
     'arrow-left': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`,
     'dot': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"></circle></svg>`,
     'edit': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
+    'play-circle': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>`,
   };
   return icons[name] || '';
 }
@@ -314,13 +315,35 @@ export function renderAlbums(albums) {
         <div class="album-name">${a.name}</div>
         <div class="album-meta">${a.project_count} project${a.project_count !== 1 ? 's' : ''}</div>
       </div>
+      <div class="album-controls">
+        <button class="album-btn album-btn-play" title="Play album">${lucideIcon('play-circle', 20)}</button>
+        <button class="album-btn album-btn-info" title="View details">ℹ</button>
+      </div>
     </div>
   `).join('');
 
   content.innerHTML = `<div class="view-header">Albums</div><div class="card-grid">${cards}</div>`;
 
   content.querySelectorAll('.album-card').forEach(card => {
-    card.addEventListener('click', async () => {
+    const playBtn = card.querySelector('.album-btn-play');
+    const infoBtn = card.querySelector('.album-btn-info');
+    
+    playBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const albumName = card.dataset.albumName;
+      const albumId   = card.dataset.albumId;
+
+      const res = await fetch('/api/tracks');
+      const allTracks = await res.json();
+      const albumTracks = allTracks.filter(t => t.album_name === albumName);
+
+      // Import playAlbum from player
+      const { playAlbum } = await import('./player.js');
+      playAlbum(albumTracks, albumName);
+    });
+
+    infoBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
       const albumName = card.dataset.albumName;
       const albumId   = card.dataset.albumId;
       const coverUrl  = `/api/albums/${albumId}/cover`;
@@ -340,7 +363,87 @@ export function renderAlbumExpanded(albumName, coverUrl, tracks) {
   state.tracks = tracks;
   const totalDuration = tracks.reduce((sum, t) => sum + (t.duration_seconds || 0), 0);
 
-  const rows = tracks.map((t, i) => trackRowHtml(t, i, { showTags: false })).join('');
+  // Add originalIndex to tracks for grouping
+  const tracksWithIndex = tracks.map((t, i) => ({ ...t, originalIndex: i }));
+
+  const rows = (() => {
+    // Group tracks by base name
+    const groups = groupTracksByVersion(tracksWithIndex);
+
+    return groups.map((group, groupIdx) => {
+      if (!group.hasVersions) {
+        // Single track, no versions — render normally
+        const t = group.tracks[0];
+        return trackRowHtml(t, t.originalIndex, { showTags: false });
+      }
+
+      // Multiple versions — render as collapsible group
+      const groupId = `version-group-${groupIdx}`;
+      const { name: trackName } = parseVersion(group.tracks[0].display_name || group.tracks[0].filename);
+
+      // Find the first track's metadata for the group header
+      const firstTrack = group.tracks[0];
+      const subParts = [];
+      if (firstTrack.project_name) subParts.push(firstTrack.project_name);
+      if (firstTrack.album_name)   subParts.push(firstTrack.album_name);
+      const subText = subParts.join('<span class="track-sub-sep">•</span>');
+
+      // Format date for group header
+      const dateStr = firstTrack.modified_at ? new Date(firstTrack.modified_at * 1000).toLocaleDateString() : '';
+
+      const groupHeader = `
+        <div class="track-group-header" data-group-id="${groupId}">
+          <span class="track-group-toggle">${lucideIcon('chevron-right', 14)}</span>
+          <div class="track-thumb">${thumbHtml(firstTrack.album_id)}</div>
+          <div class="track-info">
+            <span class="track-name">${trackName}</span>
+            ${subText ? `<span class="track-sub">${subText}</span>` : ''}
+          </div>
+          <div class="track-version-badge">
+            <span class="track-versions-tag">${group.tracks.length} versions</span>
+          </div>
+          <span class="track-tags"></span>
+          <span class="track-metadata">
+            <span class="track-duration" title="Duration">${formatTime(firstTrack.duration_seconds)}</span>
+            ${dateStr ? `<span class="track-date" title="Modified">${dateStr}</span>` : ''}
+          </span>
+        </div>`;
+
+      const versionRows = group.tracks.map((t) => {
+        const { version } = parseVersion(t.display_name || t.filename);
+        const isActive = state.currentIndex === t.originalIndex;
+        let indicator = '';
+        if (isActive) {
+          indicator = `<span class="track-indicator-icon">${lucideIcon('play', 14)}</span>`;
+        } else if (t.is_changed) {
+          indicator = `<span class="track-indicator-icon track-indicator-changed">${lucideIcon('edit', 14)}</span>`;
+        } else {
+          indicator = `<span class="track-indicator-icon">${lucideIcon('dot', 6)}</span>`;
+        }
+        
+        // Format date for version row
+        const versionDateStr = t.modified_at ? new Date(t.modified_at * 1000).toLocaleDateString() : '';
+
+        return `
+          <div class="track-row track-version-row${isActive ? ' track-active' : ''}" data-index="${t.originalIndex}" data-group-id="${groupId}">
+            <span class="track-indicator">${indicator}</span>
+            <div class="track-thumb">${thumbHtml(t.album_id)}</div>
+            <div class="track-info">
+              <span class="track-name">
+                <span class="track-version-label">${version}</span>
+              </span>
+            </div>
+            <span class="track-tags"></span>
+            <span class="track-metadata">
+              <span class="track-duration" title="Duration">${formatTime(t.duration_seconds)}</span>
+              ${versionDateStr ? `<span class="track-date" title="Modified">${versionDateStr}</span>` : ''}
+            </span>
+          </div>`;
+      }).join('');
+
+      return `${groupHeader}<div class="track-group-versions collapsed" data-group-id="${groupId}">${versionRows}</div>`;
+    }).join('');
+  })();
 
   content.innerHTML = `
     <div class="album-expanded">
@@ -362,6 +465,18 @@ export function renderAlbumExpanded(albumName, coverUrl, tracks) {
   document.getElementById('back-to-albums').addEventListener('click', async () => {
     const albums = await fetchAlbums();
     renderAlbums(albums);
+  });
+
+  // Version group collapse/expand
+  content.querySelectorAll('.track-group-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const groupId = header.dataset.groupId;
+      const versions = content.querySelector(`.track-group-versions[data-group-id="${groupId}"]`);
+      const toggle = header.querySelector('.track-group-toggle');
+
+      versions.classList.toggle('collapsed');
+      toggle.innerHTML = versions.classList.contains('collapsed') ? lucideIcon('chevron-right', 14) : lucideIcon('chevron-down', 14);
+    });
   });
 
   bindTrackRows();
@@ -412,4 +527,27 @@ export function renderFavorites() {
       <p>no favorites yet</p>
       <p class="text-muted">click a track to start listening</p>
     </div>`;
+}
+
+export function renderUnexportedProjects(projects) {
+  if (!projects.length) {
+    content.innerHTML = `<div class="empty-state"><p>no unexported projects</p></div>`;
+    return;
+  }
+
+  const cards = projects.map(p => {
+    const modDate = p.modified_at ? new Date(p.modified_at * 1000).toLocaleDateString() : 'unknown';
+    const sizeKb = Math.round((p.file_size_bytes || 0) / 1024);
+    return `
+      <div class="unexported-card">
+        <div class="unexported-icon">${lucideIcon('edit', 16)}</div>
+        <div class="unexported-info">
+          <div class="unexported-name">${p.name}</div>
+          <div class="unexported-meta">Modified ${modDate} · ${sizeKb} KB</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  content.innerHTML = `<div class="view-header">Unexported Projects</div><div class="unexported-grid">${cards}</div>`;
 }

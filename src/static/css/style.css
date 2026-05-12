@@ -61,6 +61,15 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 .topbar-search {
@@ -84,11 +93,41 @@ body {
   width: 280px;
 }
 
+.topbar-accent-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 20px;
+}
+
+.accent-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.accent-picker {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 2px;
+  background: var(--bg-surface);
+}
+
+.accent-picker:hover {
+  border-color: var(--accent-border);
+}
+
 /* --- App Layout --- */
 
 .app-layout {
   display: grid;
   grid-template-columns: 240px 1fr;
+  grid-template-rows: 1fr;
   position: fixed;
   top: 40px;
   bottom: 72px;
@@ -102,6 +141,7 @@ body {
   border-right: 1px solid var(--border);
   padding: 16px 0;
   overflow-y: auto;
+  height: 100%;
 }
 
 .sidebar-section {
@@ -143,6 +183,9 @@ body {
 .content {
   padding: 16px 24px;
   overflow-y: auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .empty-state {
@@ -310,7 +353,7 @@ body {
 }
 
 .track-group-header:hover {
-  background: rgba(0, 255, 65, 0.15);
+  background: var(--accent-dim);
 }
 
 .track-group-toggle {
@@ -507,7 +550,7 @@ body {
   text-transform: uppercase;
   padding: 2px 5px;
   border-radius: 2px;
-  background: rgba(0, 255, 65, 0.1);
+  background: var(--accent-dim);
   color: var(--accent);
   border: 1px solid var(--accent-border);
   flex-shrink: 0;
@@ -522,7 +565,7 @@ body {
   text-transform: uppercase;
   padding: 2px 5px;
   border-radius: 2px;
-  background: rgba(0, 255, 65, 0.1);
+  background: var(--accent-dim);
   color: var(--accent);
   border: 1px solid var(--accent-border);
   flex-shrink: 0;
@@ -608,7 +651,7 @@ body {
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
 }
 
@@ -621,8 +664,10 @@ body {
   transition: border-color 0.15s, background 0.15s;
   overflow: hidden;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: stretch;
+  position: relative;
+  aspect-ratio: 1;
 }
 
 .album-card:hover,
@@ -632,8 +677,8 @@ body {
 }
 
 .album-art {
-  width: 72px;
-  height: 72px;
+  width: 100%;
+  height: 60%;
   flex-shrink: 0;
   background: #111;
   display: flex;
@@ -660,6 +705,48 @@ body {
   flex-direction: column;
   justify-content: center;
   min-width: 0;
+  flex: 1;
+}
+
+.album-controls {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.album-card:hover .album-controls {
+  opacity: 1;
+}
+
+.album-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+  flex-shrink: 0;
+}
+
+.album-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-dim);
+}
+
+.album-btn svg {
+  width: 100%;
+  height: 100%;
+  padding: 4px;
 }
 
 .album-name,
@@ -773,6 +860,99 @@ body {
   align-items: flex-start;
 }
 
+/* --- Unexported Projects --- */
+
+.unexported-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.unexported-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.unexported-group-header {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.unexported-group-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.unexported-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.unexported-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-surface);
+}
+
+.unexported-card:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-dim);
+}
+
+.unexported-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.unexported-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.unexported-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  gap: 4px;
+}
+
+.unexported-name {
+  color: var(--text-bright);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unexported-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* --- Player Bar --- */
 
 .player-bar {
@@ -864,6 +1044,13 @@ body {
   gap: 8px;
 }
 
+.player-btn-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
 .player-btn {
   background: none;
   border: 1px solid var(--border);
@@ -882,6 +1069,11 @@ body {
 .player-btn:hover {
   color: var(--text-bright);
   border-color: var(--border-strong);
+}
+
+.player-btn.active {
+  color: var(--accent);
+  border-color: var(--accent-border);
 }
 
 .player-btn-play {
