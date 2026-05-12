@@ -167,7 +167,7 @@ body {
   justify-content: space-between;
   padding: 8px 12px 12px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .track-toolbar-info {
@@ -193,34 +193,88 @@ body {
   gap: 4px;
 }
 
-.sort-label {
-  color: var(--text-dim);
+/* Sort toggle — icon + label, like the screenshot */
+.sort-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 2px;
+  transition: color 0.1s;
+  letter-spacing: 0.06em;
+}
+
+.sort-toggle:hover {
+  color: var(--text);
+}
+
+.sort-toggle svg {
+  opacity: 0.7;
+}
+
+.sort-toggle:hover svg {
+  opacity: 1;
+}
+
+/* Sort dropdown panel */
+.sort-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  z-index: 50;
+  min-width: 140px;
+}
+
+.sort-panel.open {
+  display: block;
+}
+
+.sort-panel-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.sort-panel-item:hover {
+  background: var(--accent-dim);
+  color: var(--text);
+}
+
+.sort-panel-item.sort-active {
+  color: var(--accent);
+}
+
+.sort-panel-item .sort-arrow {
   font-size: 10px;
-  margin-right: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+/* Wrapper for relative positioning of the sort panel */
+.sort-wrapper {
+  position: relative;
+}
+
+/* Legacy sort buttons (hidden now, kept for fallback) */
+.sort-label {
+  display: none;
 }
 
 .sort-btn {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  font-family: var(--font);
-  font-size: 10px;
-  padding: 3px 8px;
-  cursor: pointer;
-  border-radius: 2px;
-  transition: color 0.1s, border-color 0.1s;
-}
-
-.sort-btn:hover {
-  color: var(--text);
-  border-color: var(--border-strong);
-}
-
-.sort-btn.sort-active {
-  color: var(--accent);
-  border-color: var(--accent-border);
+  display: none;
 }
 
 .track-list {
@@ -231,10 +285,10 @@ body {
 
 .track-row {
   display: grid;
-  grid-template-columns: 20px 1fr auto 160px 56px;
+  grid-template-columns: 20px 36px 1fr auto 56px;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 6px 12px;
   border-radius: 2px;
   cursor: pointer;
   transition: background 0.1s;
@@ -259,6 +313,53 @@ body {
   color: var(--accent);
 }
 
+/* --- Track thumbnail --- */
+
+.track-thumb {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  background: #111;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.track-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(30%);
+  transition: filter 0.2s;
+}
+
+.track-row:hover .track-thumb img,
+.track-row.track-active .track-thumb img {
+  filter: grayscale(0%);
+}
+
+.track-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+/* --- Track info (two-line) --- */
+
+.track-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  gap: 2px;
+}
+
 .track-name {
   color: var(--text-bright);
   font-size: 13px;
@@ -266,6 +367,19 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.track-sub {
+  color: var(--text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-sub .track-sub-sep {
+  color: var(--text-dim);
+  margin: 0 4px;
 }
 
 .track-tags {
@@ -291,14 +405,6 @@ body {
 
 .track-row:hover .tag-pill {
   opacity: 1;
-}
-
-.track-project {
-  color: var(--text-muted);
-  font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .track-duration {
@@ -487,8 +593,44 @@ body {
   z-index: 100;
 }
 
+.player-now-playing {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+  overflow: hidden;
+}
+
+.player-art {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  background: #111;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(20%);
+}
+
+.player-art-placeholder {
+  color: var(--text-dim);
+  font-size: 16px;
+}
+
 .player-track-info {
-  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -496,17 +638,17 @@ body {
   color: var(--text-bright);
   font-size: 12px;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.player-separator {
-  color: var(--text-dim);
-  margin: 0 6px;
-  font-size: 10px;
-}
-
-.player-project {
+.player-sub {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .player-controls {

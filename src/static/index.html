@@ -46,10 +46,14 @@
 
   <!-- Player bar -->
   <footer class="player-bar">
-    <div class="player-track-info">
-      <span class="player-title" id="player-title">--</span>
-      <span class="player-separator">//</span>
-      <span class="player-project" id="player-project">--</span>
+    <div class="player-now-playing">
+      <div class="player-art" id="player-art">
+        <span class="player-art-placeholder">♩</span>
+      </div>
+      <div class="player-track-info">
+        <span class="player-title" id="player-title">--</span>
+        <span class="player-sub" id="player-project">--</span>
+      </div>
     </div>
     <div class="player-controls">
       <button class="player-btn" id="btn-prev" title="Previous">&lt;</button>
@@ -69,6 +73,6 @@
   </footer>
 
   <audio id="audio-element"></audio>
-  <script src="/js/app.js"></script>
+  <script src="/js/main.js" type="module"></script>
 </body>
 </html>

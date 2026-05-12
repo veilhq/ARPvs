@@ -276,7 +276,7 @@ async def list_tracks():
     conn = get_connection()
     try:
         rows = conn.execute("""
-            SELECT t.*, p.name as project_name, a.name as album_name
+            SELECT t.*, p.name as project_name, p.album_id as album_id, a.name as album_name
             FROM tracks t
             JOIN projects p ON p.id = t.project_id
             LEFT JOIN albums a ON a.id = p.album_id
@@ -293,7 +293,7 @@ async def get_track(track_id: int):
     conn = get_connection()
     try:
         row = conn.execute("""
-            SELECT t.*, p.name as project_name, a.name as album_name
+            SELECT t.*, p.name as project_name, p.album_id as album_id, a.name as album_name
             FROM tracks t
             JOIN projects p ON p.id = t.project_id
             LEFT JOIN albums a ON a.id = p.album_id
@@ -348,7 +348,7 @@ async def search_tracks(q: str = ""):
     try:
         query = f"%{q}%"
         rows = conn.execute("""
-            SELECT t.*, p.name as project_name, a.name as album_name
+            SELECT t.*, p.name as project_name, p.album_id as album_id, a.name as album_name
             FROM tracks t
             JOIN projects p ON p.id = t.project_id
             LEFT JOIN albums a ON a.id = p.album_id
