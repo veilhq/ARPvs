@@ -8,17 +8,28 @@ Serves the static UI and provides REST API endpoints for:
   - Virtual organization (collections, tags, favorites)
 """
 
-from fastapi import FastAPI, HTTPException
+import asyncio
+
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pathlib import Path
 from contextlib import asynccontextmanager
 
 from src.config import load_config, ensure_data_dir
 from src.database import init_db, get_connection
-from src.scanner import scan_for_tracks, scan_for_projects, detect_hierarchy, get_wav_duration, hash_file, get_file_info
+from src.scanner import (
+    scan_for_tracks,
+    scan_for_projects,
+    detect_hierarchy,
+    get_wav_duration,
+    get_file_info,
+)
 
 STATIC_DIR = Path(__file__).parent / "static"
+
+# Module-level config reference, loaded once at import time for use in routes.
+_config = load_config()
 
 
 def run_scan():
@@ -38,54 +49,69 @@ def run_scan():
     added_tracks = 0
     added_projects = 0
     try:
+        # Preload existing state once — avoids N+1 queries during scan.
+        existing_tracks = {
+            row["path"]: row["id"]
+            for row in conn.execute("SELECT id, path, duration_seconds FROM tracks")
+        }
+        tracks_needing_duration = {
+            row["id"]
+            for row in conn.execute(
+                "SELECT id FROM tracks WHERE duration_seconds IS NULL OR duration_seconds = 0"
+            )
+        }
+        album_ids_by_path = {
+            row["path"]: row["id"]
+            for row in conn.execute("SELECT id, path FROM albums")
+        }
+        project_ids_by_path = {
+            row["path"]: row["id"]
+            for row in conn.execute("SELECT id, path FROM projects")
+        }
+        existing_unexported = {
+            row["path"] for row in conn.execute("SELECT path FROM unexported_projects")
+        }
+
         # Scan exported tracks
         for wav_path in tracks_found:
-            # Check if already in DB
-            existing = conn.execute(
-                "SELECT id, duration_seconds FROM tracks WHERE path = ?", (str(wav_path),)
-            ).fetchone()
-            if existing:
-                # Update duration if it was 0 (failed on previous scan)
-                if not existing["duration_seconds"]:
+            wav_path_str = str(wav_path)
+            if wav_path_str in existing_tracks:
+                # Backfill duration if it was missing on a previous scan
+                track_id = existing_tracks[wav_path_str]
+                if track_id in tracks_needing_duration:
                     duration = get_wav_duration(wav_path)
                     if duration > 0:
                         conn.execute(
                             "UPDATE tracks SET duration_seconds = ? WHERE id = ?",
-                            (duration, existing["id"]),
+                            (duration, track_id),
                         )
                 continue
 
             hierarchy = detect_hierarchy(wav_path, scan_root)
 
-            # Upsert album
+            # Upsert album (cached)
             album_id = None
             if hierarchy["album_name"]:
-                row = conn.execute(
-                    "SELECT id FROM albums WHERE path = ?",
-                    (hierarchy["album_path"],),
-                ).fetchone()
-                if row:
-                    album_id = row["id"]
-                else:
+                album_path = hierarchy["album_path"]
+                album_id = album_ids_by_path.get(album_path)
+                if album_id is None:
                     cur = conn.execute(
                         "INSERT INTO albums (name, path) VALUES (?, ?)",
-                        (hierarchy["album_name"], hierarchy["album_path"]),
+                        (hierarchy["album_name"], album_path),
                     )
                     album_id = cur.lastrowid
+                    album_ids_by_path[album_path] = album_id
 
-            # Upsert project
-            row = conn.execute(
-                "SELECT id FROM projects WHERE path = ?",
-                (hierarchy["project_path"],),
-            ).fetchone()
-            if row:
-                project_id = row["id"]
-            else:
+            # Upsert project (cached)
+            project_path = hierarchy["project_path"]
+            project_id = project_ids_by_path.get(project_path)
+            if project_id is None:
                 cur = conn.execute(
                     "INSERT INTO projects (name, path, album_id) VALUES (?, ?, ?)",
-                    (hierarchy["project_name"], hierarchy["project_path"], album_id),
+                    (hierarchy["project_name"], project_path, album_id),
                 )
                 project_id = cur.lastrowid
+                project_ids_by_path[project_path] = project_id
 
             # Insert track
             duration = get_wav_duration(wav_path)
@@ -100,7 +126,7 @@ def run_scan():
                 (
                     project_id,
                     wav_path.name,
-                    str(wav_path),
+                    wav_path_str,
                     display_name,
                     file_info["size_bytes"],
                     file_info["modified_at"],
@@ -111,23 +137,18 @@ def run_scan():
 
         # Scan unexported projects
         for als_path in unexported_found:
-            # Check if already in DB
-            existing = conn.execute(
-                "SELECT id FROM unexported_projects WHERE path = ?", (str(als_path),)
-            ).fetchone()
-            if existing:
+            als_path_str = str(als_path)
+            if als_path_str in existing_unexported:
                 continue
 
             file_info = get_file_info(als_path)
-            project_name = als_path.stem
-
             conn.execute(
                 """INSERT INTO unexported_projects
                    (name, path, file_size_bytes, modified_at)
                    VALUES (?, ?, ?, ?)""",
                 (
-                    project_name,
-                    str(als_path),
+                    als_path.stem,
+                    als_path_str,
                     file_info["size_bytes"],
                     file_info["modified_at"],
                 ),
@@ -165,7 +186,8 @@ app = FastAPI(
 @app.post("/api/scan")
 async def trigger_scan():
     """Manually trigger a rescan of the configured root."""
-    added_tracks, added_projects = run_scan()
+    # Run scan in a thread so we don't block the event loop.
+    added_tracks, added_projects = await asyncio.to_thread(run_scan)
     return {"added_tracks": added_tracks, "added_projects": added_projects}
 
 
@@ -261,8 +283,6 @@ def _image_media_type(filepath: Path) -> str:
 
 def _placeholder_svg(album_id: int):
     """Generate a grayscale SVG placeholder for albums without art."""
-    from fastapi.responses import Response
-
     # Use album_id to vary the pattern slightly
     shade1 = 20 + (album_id * 7) % 20
     shade2 = 30 + (album_id * 13) % 25
@@ -349,8 +369,8 @@ async def get_track(track_id: int):
 
 
 @app.get("/api/stream/{track_id}")
-async def stream_track(track_id: int):
-    """Stream audio for a track."""
+async def stream_track(track_id: int, request: Request):
+    """Stream audio for a track with HTTP Range support (for seeking)."""
     conn = get_connection()
     try:
         row = conn.execute(
@@ -366,19 +386,63 @@ async def stream_track(track_id: int):
         print(f"[ARPvs] WARNING: Audio file not found: {file_path}")
         raise HTTPException(status_code=404, detail="Audio file not found on disk")
 
-    print(f"[ARPvs] Streaming: {file_path}")
+    file_size = file_path.stat().st_size
+    range_header = request.headers.get("range") or request.headers.get("Range")
+    chunk_size = _config.get("stream_chunk_size", 65536)
 
-    def iter_file():
+    # No Range header — full body
+    if not range_header:
+        def iter_file():
+            with open(file_path, "rb") as f:
+                while chunk := f.read(chunk_size):
+                    yield chunk
+
+        return StreamingResponse(
+            iter_file(),
+            media_type="audio/wav",
+            headers={
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(file_size),
+            },
+        )
+
+    # Parse "bytes=start-end"
+    try:
+        units, _, rng = range_header.partition("=")
+        if units.strip().lower() != "bytes":
+            raise ValueError
+        start_s, _, end_s = rng.strip().partition("-")
+        start = int(start_s) if start_s else 0
+        end = int(end_s) if end_s else file_size - 1
+        if start < 0 or end >= file_size or start > end:
+            raise ValueError
+    except ValueError:
+        return Response(
+            status_code=416,
+            headers={"Content-Range": f"bytes */{file_size}"},
+        )
+
+    length = end - start + 1
+
+    def iter_range():
         with open(file_path, "rb") as f:
-            while chunk := f.read(65536):
+            f.seek(start)
+            remaining = length
+            while remaining > 0:
+                chunk = f.read(min(chunk_size, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
                 yield chunk
 
     return StreamingResponse(
-        iter_file(),
+        iter_range(),
+        status_code=206,
         media_type="audio/wav",
         headers={
             "Accept-Ranges": "bytes",
-            "Content-Length": str(file_path.stat().st_size),
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Content-Length": str(length),
         },
     )
 
@@ -392,6 +456,7 @@ async def search_tracks(q: str = ""):
     conn = get_connection()
     try:
         query = f"%{q}%"
+        limit = _config.get("search_result_limit", 50)
         rows = conn.execute("""
             SELECT t.*, p.name as project_name, p.album_id as album_id, a.name as album_name
             FROM tracks t
@@ -401,8 +466,8 @@ async def search_tracks(q: str = ""):
                OR t.display_name LIKE ?
                OR p.name LIKE ?
             ORDER BY t.filename
-            LIMIT 50
-        """, (query, query, query)).fetchall()
+            LIMIT ?
+        """, (query, query, query, limit)).fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()

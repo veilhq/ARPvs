@@ -56,18 +56,40 @@ arpvs/
 │   ├── scanner.py       # Filesystem scanner + waveform generation
 │   ├── database.py      # SQLite schema + operations
 │   ├── models.py        # Pydantic schemas for API responses
-│   ├── config.py        # Configuration loading
+│   ├── config.py        # Configuration loading (.env)
 │   └── static/          # Frontend (HTML/CSS/JS)
 │       ├── index.html
 │       ├── css/
-│       │   └── style.css
+│       │   ├── style.css      # Import hub
+│       │   ├── base.css       # Variables & resets
+│       │   ├── layout.css     # Grid layout
+│       │   ├── topbar.css
+│       │   ├── sidebar.css
+│       │   ├── tracks.css
+│       │   ├── albums.css
+│       │   ├── player.css
+│       │   └── splash.css
+│       ├── fonts/
+│       │   └── DepartureMono-Regular.otf
 │       └── js/
-│           └── app.js
+│           ├── main.js        # Entry point
+│           ├── api.js         # Backend API wrappers
+│           ├── state.js       # Shared state object
+│           ├── views.js       # Content rendering
+│           ├── player.js      # Audio playback engine
+│           ├── nav.js         # Sidebar + search + shortcuts
+│           ├── icons.js       # SVG icon registry
+│           ├── theme.js       # Accent color + palette engine
+│           ├── splash.js      # Splash / screensaver
+│           ├── dither-bg.js   # Animated dither canvas
+│           └── utils.js       # Helpers (formatTime, etc.)
+├── scripts/
+│   └── generate_test_data.py  # Creates a test library
 ├── data/                # Runtime data (created on first run)
 │   ├── library.db       # SQLite database
 │   └── cover_art/       # User-uploaded cover images
 ├── run.py               # Entry point
-├── config.example.json  # Example configuration
+├── .env.example         # Example configuration
 ├── requirements.txt     # Python dependencies
 └── .gitignore
 ```

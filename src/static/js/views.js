@@ -7,7 +7,7 @@
 
 import { state } from './state.js';
 import { formatTime, parseVersion, groupTracksByVersion } from './utils.js';
-import { fetchAlbums } from './api.js';
+import { fetchAlbums, fetchTracks } from './api.js';
 import { createIcon } from './icons.js';
 
 const content = document.getElementById('content');
@@ -17,6 +17,18 @@ let _playTrack = null;
 
 export function setPlayTrack(fn) {
   _playTrack = fn;
+}
+
+// Register the sort-panel outside-click handler exactly once. Previously
+// this ran on every track list render, leaking a listener per render.
+let _sortOutsideCloseInstalled = false;
+function installSortPanelOutsideClose() {
+  if (_sortOutsideCloseInstalled) return;
+  _sortOutsideCloseInstalled = true;
+  document.addEventListener('click', () => {
+    const panel = document.getElementById('sort-panel');
+    if (panel) panel.classList.remove('open');
+  });
 }
 
 // --- Icon helpers ---
@@ -123,6 +135,92 @@ function bindTrackRows() {
   });
 }
 
+// Renders a list of tracks (already carrying `originalIndex`) as a mix of
+// single-row and collapsible version-group rows. Used by both the main
+// track list and the album-expanded view.
+function renderGroupedTracksHtml(tracks, { showTags = true } = {}) {
+  const groups = groupTracksByVersion(tracks);
+
+  return groups.map((group, groupIdx) => {
+    if (!group.hasVersions) {
+      const t = group.tracks[0];
+      return trackRowHtml(t, t.originalIndex, { showTags });
+    }
+
+    const groupId = `version-group-${groupIdx}`;
+    const firstTrack = group.tracks[0];
+    const { name: trackName } = parseVersion(firstTrack.display_name || firstTrack.filename);
+
+    const subParts = [];
+    if (firstTrack.project_name) subParts.push(firstTrack.project_name);
+    if (firstTrack.album_name)   subParts.push(firstTrack.album_name);
+    const subText = subParts.join('<span class="track-sub-sep">•</span>');
+    const dateStr = firstTrack.modified_at ? new Date(firstTrack.modified_at * 1000).toLocaleDateString() : '';
+
+    const groupHeader = `
+      <div class="track-group-header" data-group-id="${groupId}">
+        <span class="track-group-toggle">${lucideIcon('chevron-right', 14)}</span>
+        <div class="track-thumb">${thumbHtml(firstTrack.album_id)}</div>
+        <div class="track-info">
+          <span class="track-name">${trackName}</span>
+          ${subText ? `<span class="track-sub">${subText}</span>` : ''}
+        </div>
+        <div class="track-version-badge">
+          <span class="track-versions-tag">${group.tracks.length} versions</span>
+        </div>
+        <span class="track-tags"></span>
+        <span class="track-metadata">
+          <span class="track-duration" title="Duration">${formatTime(firstTrack.duration_seconds)}</span>
+          ${dateStr ? `<span class="track-date" title="Modified">${dateStr}</span>` : ''}
+        </span>
+      </div>`;
+
+    const versionRows = group.tracks.map((t) => {
+      const { version } = parseVersion(t.display_name || t.filename);
+      const isActive = state.currentIndex === t.originalIndex;
+      let indicator;
+      if (isActive)         indicator = `<span class="track-indicator-icon">${lucideIcon('play', 14)}</span>`;
+      else if (t.is_changed) indicator = `<span class="track-indicator-icon track-indicator-changed">${lucideIcon('edit', 14)}</span>`;
+      else                   indicator = `<span class="track-indicator-icon">${lucideIcon('dot', 6)}</span>`;
+
+      const versionDateStr = t.modified_at ? new Date(t.modified_at * 1000).toLocaleDateString() : '';
+
+      return `
+        <div class="track-row track-version-row${isActive ? ' track-active' : ''}" data-index="${t.originalIndex}" data-group-id="${groupId}">
+          <span class="track-indicator">${indicator}</span>
+          <div class="track-thumb">${thumbHtml(t.album_id)}</div>
+          <div class="track-info">
+            <span class="track-name">
+              <span class="track-version-label">${version}</span>
+            </span>
+          </div>
+          <span class="track-tags"></span>
+          <span class="track-metadata">
+            <span class="track-duration" title="Duration">${formatTime(t.duration_seconds)}</span>
+            ${versionDateStr ? `<span class="track-date" title="Modified">${versionDateStr}</span>` : ''}
+          </span>
+        </div>`;
+    }).join('');
+
+    return `${groupHeader}<div class="track-group-versions collapsed" data-group-id="${groupId}">${versionRows}</div>`;
+  }).join('');
+}
+
+// Wire the chevron toggle on any rendered track-group headers.
+function bindGroupHeaders() {
+  content.querySelectorAll('.track-group-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const groupId = header.dataset.groupId;
+      const versions = content.querySelector(`.track-group-versions[data-group-id="${groupId}"]`);
+      const toggle = header.querySelector('.track-group-toggle');
+      versions.classList.toggle('collapsed');
+      toggle.innerHTML = versions.classList.contains('collapsed')
+        ? lucideIcon('chevron-right', 14)
+        : lucideIcon('chevron-down', 14);
+    });
+  });
+}
+
 // --- Track list view ---
 
 export function renderTrackList(tracks) {
@@ -173,84 +271,7 @@ export function renderTrackList(tracks) {
       </div>
     </div>`;
 
-  const rows = (() => {
-    // Group tracks by base name
-    const groups = groupTracksByVersion(tracks);
-
-    return groups.map((group, groupIdx) => {
-      if (!group.hasVersions) {
-        // Single track, no versions — render normally
-        const t = group.tracks[0];
-        return trackRowHtml(t, t.originalIndex);
-      }
-
-      // Multiple versions — render as collapsible group
-      const groupId = `version-group-${groupIdx}`;
-      const { name: trackName } = parseVersion(group.tracks[0].display_name || group.tracks[0].filename);
-
-      // Find the first track's metadata for the group header
-      const firstTrack = group.tracks[0];
-      const subParts = [];
-      if (firstTrack.project_name) subParts.push(firstTrack.project_name);
-      if (firstTrack.album_name)   subParts.push(firstTrack.album_name);
-      const subText = subParts.join('<span class="track-sub-sep">•</span>');
-
-      // Format date for group header
-      const dateStr = firstTrack.modified_at ? new Date(firstTrack.modified_at * 1000).toLocaleDateString() : '';
-
-      const groupHeader = `
-        <div class="track-group-header" data-group-id="${groupId}">
-          <span class="track-group-toggle">${lucideIcon('chevron-right', 14)}</span>
-          <div class="track-thumb">${thumbHtml(firstTrack.album_id)}</div>
-          <div class="track-info">
-            <span class="track-name">${trackName}</span>
-            ${subText ? `<span class="track-sub">${subText}</span>` : ''}
-          </div>
-          <div class="track-version-badge">
-            <span class="track-versions-tag">${group.tracks.length} versions</span>
-          </div>
-          <span class="track-tags"></span>
-          <span class="track-metadata">
-            <span class="track-duration" title="Duration">${formatTime(firstTrack.duration_seconds)}</span>
-            ${dateStr ? `<span class="track-date" title="Modified">${dateStr}</span>` : ''}
-          </span>
-        </div>`;
-
-      const versionRows = group.tracks.map((t) => {
-        const { version } = parseVersion(t.display_name || t.filename);
-        const isActive = state.currentIndex === t.originalIndex;
-        let indicator = '';
-        if (isActive) {
-          indicator = `<span class="track-indicator-icon">${lucideIcon('play', 14)}</span>`;
-        } else if (t.is_changed) {
-          indicator = `<span class="track-indicator-icon track-indicator-changed">${lucideIcon('edit', 14)}</span>`;
-        } else {
-          indicator = `<span class="track-indicator-icon">${lucideIcon('dot', 6)}</span>`;
-        }
-        
-        // Format date for version row
-        const versionDateStr = t.modified_at ? new Date(t.modified_at * 1000).toLocaleDateString() : '';
-
-        return `
-          <div class="track-row track-version-row${isActive ? ' track-active' : ''}" data-index="${t.originalIndex}" data-group-id="${groupId}">
-            <span class="track-indicator">${indicator}</span>
-            <div class="track-thumb">${thumbHtml(t.album_id)}</div>
-            <div class="track-info">
-              <span class="track-name">
-                <span class="track-version-label">${version}</span>
-              </span>
-            </div>
-            <span class="track-tags"></span>
-            <span class="track-metadata">
-              <span class="track-duration" title="Duration">${formatTime(t.duration_seconds)}</span>
-              ${versionDateStr ? `<span class="track-date" title="Modified">${versionDateStr}</span>` : ''}
-            </span>
-          </div>`;
-      }).join('');
-
-      return `${groupHeader}<div class="track-group-versions collapsed" data-group-id="${groupId}">${versionRows}</div>`;
-    }).join('');
-  })();
+  const rows = renderGroupedTracksHtml(tracks);
 
   content.innerHTML = `${toolbar}<div class="track-list">${rows}</div>`;
 
@@ -263,7 +284,8 @@ export function renderTrackList(tracks) {
     sortPanel.classList.toggle('open');
   });
 
-  document.addEventListener('click', () => sortPanel.classList.remove('open'));
+  // Close any open sort panel on outside click — registered once globally.
+  installSortPanelOutsideClose();
 
   content.querySelectorAll('.sort-panel-item').forEach(item => {
     item.addEventListener('click', (e) => {
@@ -272,18 +294,7 @@ export function renderTrackList(tracks) {
     });
   });
 
-  // Version group collapse/expand
-  content.querySelectorAll('.track-group-header').forEach(header => {
-    header.addEventListener('click', () => {
-      const groupId = header.dataset.groupId;
-      const versions = content.querySelector(`.track-group-versions[data-group-id="${groupId}"]`);
-      const toggle = header.querySelector('.track-group-toggle');
-
-      versions.classList.toggle('collapsed');
-      toggle.innerHTML = versions.classList.contains('collapsed') ? lucideIcon('chevron-right', 14) : lucideIcon('chevron-down', 14);
-    });
-  });
-
+  bindGroupHeaders();
   bindTrackRows();
 }
 
@@ -316,17 +327,15 @@ export function renderAlbums(albums) {
   content.querySelectorAll('.album-card').forEach(card => {
     const playBtn = card.querySelector('.album-btn-play');
     const infoBtn = card.querySelector('.album-btn-info');
-    
+
     playBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const albumName = card.dataset.albumName;
-      const albumId   = card.dataset.albumId;
 
-      const res = await fetch('/api/tracks');
-      const allTracks = await res.json();
+      const allTracks = await fetchTracks();
       const albumTracks = allTracks.filter(t => t.album_name === albumName);
 
-      // Import playAlbum from player
+      // Import playAlbum lazily to avoid circular imports.
       const { playAlbum } = await import('./player.js');
       playAlbum(albumTracks, albumName);
     });
@@ -337,8 +346,7 @@ export function renderAlbums(albums) {
       const albumId   = card.dataset.albumId;
       const coverUrl  = `/api/albums/${albumId}/cover`;
 
-      const res = await fetch('/api/tracks');
-      const allTracks = await res.json();
+      const allTracks = await fetchTracks();
       const albumTracks = allTracks.filter(t => t.album_name === albumName);
 
       renderAlbumExpanded(albumName, coverUrl, albumTracks);
@@ -354,85 +362,7 @@ export function renderAlbumExpanded(albumName, coverUrl, tracks) {
 
   // Add originalIndex to tracks for grouping
   const tracksWithIndex = tracks.map((t, i) => ({ ...t, originalIndex: i }));
-
-  const rows = (() => {
-    // Group tracks by base name
-    const groups = groupTracksByVersion(tracksWithIndex);
-
-    return groups.map((group, groupIdx) => {
-      if (!group.hasVersions) {
-        // Single track, no versions — render normally
-        const t = group.tracks[0];
-        return trackRowHtml(t, t.originalIndex, { showTags: false });
-      }
-
-      // Multiple versions — render as collapsible group
-      const groupId = `version-group-${groupIdx}`;
-      const { name: trackName } = parseVersion(group.tracks[0].display_name || group.tracks[0].filename);
-
-      // Find the first track's metadata for the group header
-      const firstTrack = group.tracks[0];
-      const subParts = [];
-      if (firstTrack.project_name) subParts.push(firstTrack.project_name);
-      if (firstTrack.album_name)   subParts.push(firstTrack.album_name);
-      const subText = subParts.join('<span class="track-sub-sep">•</span>');
-
-      // Format date for group header
-      const dateStr = firstTrack.modified_at ? new Date(firstTrack.modified_at * 1000).toLocaleDateString() : '';
-
-      const groupHeader = `
-        <div class="track-group-header" data-group-id="${groupId}">
-          <span class="track-group-toggle">${lucideIcon('chevron-right', 14)}</span>
-          <div class="track-thumb">${thumbHtml(firstTrack.album_id)}</div>
-          <div class="track-info">
-            <span class="track-name">${trackName}</span>
-            ${subText ? `<span class="track-sub">${subText}</span>` : ''}
-          </div>
-          <div class="track-version-badge">
-            <span class="track-versions-tag">${group.tracks.length} versions</span>
-          </div>
-          <span class="track-tags"></span>
-          <span class="track-metadata">
-            <span class="track-duration" title="Duration">${formatTime(firstTrack.duration_seconds)}</span>
-            ${dateStr ? `<span class="track-date" title="Modified">${dateStr}</span>` : ''}
-          </span>
-        </div>`;
-
-      const versionRows = group.tracks.map((t) => {
-        const { version } = parseVersion(t.display_name || t.filename);
-        const isActive = state.currentIndex === t.originalIndex;
-        let indicator = '';
-        if (isActive) {
-          indicator = `<span class="track-indicator-icon">${lucideIcon('play', 14)}</span>`;
-        } else if (t.is_changed) {
-          indicator = `<span class="track-indicator-icon track-indicator-changed">${lucideIcon('edit', 14)}</span>`;
-        } else {
-          indicator = `<span class="track-indicator-icon">${lucideIcon('dot', 6)}</span>`;
-        }
-        
-        // Format date for version row
-        const versionDateStr = t.modified_at ? new Date(t.modified_at * 1000).toLocaleDateString() : '';
-
-        return `
-          <div class="track-row track-version-row${isActive ? ' track-active' : ''}" data-index="${t.originalIndex}" data-group-id="${groupId}">
-            <span class="track-indicator">${indicator}</span>
-            <div class="track-thumb">${thumbHtml(t.album_id)}</div>
-            <div class="track-info">
-              <span class="track-name">
-                <span class="track-version-label">${version}</span>
-              </span>
-            </div>
-            <span class="track-tags"></span>
-            <span class="track-metadata">
-              <span class="track-duration" title="Duration">${formatTime(t.duration_seconds)}</span>
-              ${versionDateStr ? `<span class="track-date" title="Modified">${versionDateStr}</span>` : ''}
-            </span>
-          </div>`;
-      }).join('');
-
-      return `${groupHeader}<div class="track-group-versions collapsed" data-group-id="${groupId}">${versionRows}</div>`;
-    }).join('');
-  })();
+  const rows = renderGroupedTracksHtml(tracksWithIndex, { showTags: false });
 
   content.innerHTML = `
     <div class="album-expanded">
@@ -456,18 +386,7 @@ export function renderAlbumExpanded(albumName, coverUrl, tracks) {
     renderAlbums(albums);
   });
 
-  // Version group collapse/expand
-  content.querySelectorAll('.track-group-header').forEach(header => {
-    header.addEventListener('click', () => {
-      const groupId = header.dataset.groupId;
-      const versions = content.querySelector(`.track-group-versions[data-group-id="${groupId}"]`);
-      const toggle = header.querySelector('.track-group-toggle');
-
-      versions.classList.toggle('collapsed');
-      toggle.innerHTML = versions.classList.contains('collapsed') ? lucideIcon('chevron-right', 14) : lucideIcon('chevron-down', 14);
-    });
-  });
-
+  bindGroupHeaders();
   bindTrackRows();
 }
 
@@ -491,8 +410,7 @@ export function renderProjects(projects) {
   content.querySelectorAll('.project-card').forEach(card => {
     card.addEventListener('click', async () => {
       const projectName = card.querySelector('.project-name').textContent;
-      const res = await fetch('/api/tracks');
-      const allTracks = await res.json();
+      const allTracks = await fetchTracks();
       const projectTracks = allTracks.filter(t => t.project_name === projectName);
       state.tracks = projectTracks;
       renderTrackList(projectTracks);

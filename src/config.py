@@ -23,24 +23,35 @@ else:
 
 DEFAULTS = {
     "scan_root": "",
+    "host": "127.0.0.1",
     "port": 8000,
     "window_width": 1200,
     "window_height": 800,
+    "window_min_width": 800,
+    "window_min_height": 500,
     "window_title": "ARPvs",
+    "search_result_limit": 50,
+    "stream_chunk_size": 65536,
 }
 
 
 def load_config() -> dict:
     """Load configuration from environment variables, falling back to defaults."""
     scan_root = os.getenv("SCAN_ROOT", DEFAULTS["scan_root"])
+    host = os.getenv("HOST", DEFAULTS["host"])
     port = int(os.getenv("PORT", DEFAULTS["port"]))
     
     config = {
         "scan_root": scan_root,
+        "host": host,
         "port": port,
+        "search_result_limit": int(os.getenv("SEARCH_LIMIT", DEFAULTS["search_result_limit"])),
+        "stream_chunk_size": int(os.getenv("STREAM_CHUNK_SIZE", DEFAULTS["stream_chunk_size"])),
         "window": {
             "width": int(os.getenv("WINDOW_WIDTH", DEFAULTS["window_width"])),
             "height": int(os.getenv("WINDOW_HEIGHT", DEFAULTS["window_height"])),
+            "min_width": int(os.getenv("WINDOW_MIN_WIDTH", DEFAULTS["window_min_width"])),
+            "min_height": int(os.getenv("WINDOW_MIN_HEIGHT", DEFAULTS["window_min_height"])),
             "title": os.getenv("WINDOW_TITLE", DEFAULTS["window_title"]),
         },
     }

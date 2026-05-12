@@ -17,7 +17,7 @@ def start_server(config):
     """Start the FastAPI/Uvicorn server."""
     uvicorn.run(
         "src.main:app",
-        host="127.0.0.1",
+        host=config["host"],
         port=config["port"],
         log_level="info",
         reload=False,
@@ -28,7 +28,7 @@ def start_desktop(config):
     """Start PyWebView native window pointing at the local server."""
     import webview
 
-    url = f"http://127.0.0.1:{config['port']}"
+    url = f"http://{config['host']}:{config['port']}"
     window_cfg = config.get("window", {})
 
     webview.create_window(
@@ -36,7 +36,7 @@ def start_desktop(config):
         url=url,
         width=window_cfg.get("width", 1200),
         height=window_cfg.get("height", 800),
-        min_size=(800, 500),
+        min_size=(window_cfg.get("min_width", 800), window_cfg.get("min_height", 500)),
     )
     webview.start()
 
@@ -47,7 +47,7 @@ def main():
 
     if dev_mode:
         # Dev mode: just run the server, access via browser
-        print(f"[ARPvs] Dev server at http://127.0.0.1:{config['port']}")
+        print(f"[ARPvs] Dev server at http://{config['host']}:{config['port']}")
         start_server(config)
     else:
         # Production: start server in background, open native window
