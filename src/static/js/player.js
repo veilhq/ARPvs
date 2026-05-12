@@ -57,7 +57,11 @@ export function playTrack(index) {
   state.currentTrack = track;
   state.currentIndex = index;
 
+  // Stop and reset the current audio before loading new track
+  audio.pause();
+  audio.currentTime = 0;
   audio.src = `/api/stream/${track.id}`;
+  
   const playPromise = audio.play();
   
   if (playPromise !== undefined) {

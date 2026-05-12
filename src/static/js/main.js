@@ -11,9 +11,18 @@ import { fetchTracks, fetchTrackTags } from './api.js';
 import { sortTracks, renderTrackList, setPlayTrack } from './views.js';
 import { playTrack, setOnTrackChange, toggleShuffle, toggleLoop } from './player.js';
 import { initializeTheme, setupColorPicker } from './theme.js';
+import { initSplash } from './splash.js';
+import { initializeIcons } from './icons.js';
 
 // Initialize theme from storage
 initializeTheme();
+
+// Initialize icons
+initializeIcons();
+
+// Initialize splash screen (shows for 3 seconds)
+// Delay slightly to ensure DOM is ready
+setTimeout(() => initSplash(3000), 100);
 
 // Wire the circular dependency break-points:
 //   views needs to call playTrack  → inject it
@@ -58,6 +67,12 @@ btnShuffle.addEventListener('click', () => {
 btnLoop.addEventListener('click', () => {
   toggleLoop();
   updateLoopButton();
+});
+
+// Reload button
+const reloadBtn = document.getElementById('reload-btn');
+reloadBtn.addEventListener('click', () => {
+  location.reload();
 });
 
 async function init() {

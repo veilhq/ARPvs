@@ -1,0 +1,48 @@
+/* ARPvs — Base Styles & Variables */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #000000;
+  --bg-surface: #0a0a0a;
+  --border: #1a1a1a;
+  --border-strong: #2a2a2a;
+  --text-bright: #ffffff;
+  --text: #d0d0d0;
+  --text-muted: #808080;
+  --text-dim: #505050;
+  --accent: #00ff41;
+  --accent-dim: rgba(0, 255, 65, 0.08);
+  --accent-border: rgba(0, 255, 65, 0.4);
+  --warm: #ffb000;
+  --cool: #00cccc;
+  --alert: #ff0041;
+  --font: 'Departure Mono', monospace;
+  --font-heading: 'IBM Plex Sans', 'Helvetica Neue', 'Helvetica', sans-serif;
+  --font-mono: 'Departure Mono', monospace;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  line-height: 1.5;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+}
+
+.text-muted {
+  color: var(--text-dim);
+  font-size: 10px;
+  font-family: var(--font-mono);
+}

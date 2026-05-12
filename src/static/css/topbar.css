@@ -1,0 +1,131 @@
+/* Topbar & Search */
+
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  z-index: 100;
+}
+
+.topbar-title {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-heading);
+}
+
+.topbar-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.topbar-search {
+  margin-left: auto;
+  margin-right: 16px;
+}
+
+.topbar-search input {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 4px 10px;
+  width: 200px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.topbar-search input:focus {
+  border-color: var(--accent-border);
+  width: 280px;
+}
+
+.topbar-accent-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 8px;
+}
+
+.accent-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.accent-picker {
+  width: 28px;
+  height: 28px;
+  max-height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 2px;
+  margin: 0;
+  background: var(--bg-surface);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.accent-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+  margin: 0;
+}
+
+.accent-picker::-webkit-color-swatch {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.accent-picker:hover {
+  border-color: var(--accent-border);
+}
+
+.topbar-reload {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  max-height: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  transition: color 0.1s, border-color 0.1s;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.topbar-reload:hover {
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+.topbar-reload svg {
+  width: 14px;
+  height: 14px;
+}
