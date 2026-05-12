@@ -1,9 +1,9 @@
 /**
- * dither-bg.js — Dithered liquid gradient background for the splash screen.
+ * dither-bg.js — Dithered gradient background for the splash screen.
  *
- * Renders an animated Bayer-dithered gradient on a canvas element.
- * Uses an 8×8 ordered dither matrix to quantize layered gradients into
- * on/off pixels, creating a retro halftone look that animates fluidly.
+ * Renders an animated Bayer-dithered gradient on a canvas element using
+ * the gray hierarchy (--bg through --border) so it never washes out text.
+ * The accent color appears only as sparse, dim highlights.
  */
 
 export function initDitherBackground() {
@@ -16,21 +16,17 @@ export function initDitherBackground() {
 
   // --- Configuration ---
   var CELL_SIZE = 2;
-  var SPEED = 0.02;
-  var ALPHA = 200;
+  var SPEED = 0.015;
 
-  // --- Colors ---
-  // Read initial accent from localStorage or CSS variable
-  var storedAccent = localStorage.getItem('arpvs-accent-color');
-  var accentColor = { r: 0, g: 255, b: 65 }; // fallback: #00ff41
-  if (storedAccent && storedAccent.length === 7) {
-    accentColor = {
-      r: parseInt(storedAccent.slice(1, 3), 16),
-      g: parseInt(storedAccent.slice(3, 5), 16),
-      b: parseInt(storedAccent.slice(5, 7), 16)
-    };
-  }
-  var paletteColors = null;
+  // --- Gray palette (matches CSS hierarchy) ---
+  var GRAYS = [
+    { r: 0,  g: 0,  b: 0  },   // #000000 — pure black
+    { r: 10, g: 10, b: 10 },   // #0a0a0a
+    { r: 24, g: 24, b: 24 },   // #181818
+    { r: 42, g: 42, b: 42 },   // #2a2a2a
+    { r: 60, g: 60, b: 60 },   // #3c3c3c
+    { r: 80, g: 80, b: 80 },   // #505050
+  ];
 
   // --- Bayer 8×8 ordered dither matrix ---
   var bayerMatrix = [
@@ -44,7 +40,7 @@ export function initDitherBackground() {
     [63, 31, 55, 23, 61, 29, 53, 21]
   ];
 
-  // Normalize to 0–1 range
+  // Normalize to 0–1
   for (var i = 0; i < 8; i++) {
     for (var j = 0; j < 8; j++) {
       bayerMatrix[i][j] /= 64;
@@ -59,7 +55,24 @@ export function initDitherBackground() {
   resize();
   window.addEventListener("resize", resize);
 
-  // --- Core render function ---
+  // --- Lerp between two colors ---
+  function lerpColor(a, b, t) {
+    return {
+      r: Math.round(a.r + (b.r - a.r) * t),
+      g: Math.round(a.g + (b.g - a.g) * t),
+      b: Math.round(a.b + (b.b - a.b) * t)
+    };
+  }
+
+  // --- Sample from gray palette by position (0–1) ---
+  function sampleGray(val) {
+    var pos = val * (GRAYS.length - 1);
+    var idx = Math.min(GRAYS.length - 2, Math.floor(pos));
+    var frac = pos - idx;
+    return lerpColor(GRAYS[idx], GRAYS[idx + 1], frac);
+  }
+
+  // --- Core render ---
   function draw() {
     var w = canvas.width;
     var h = canvas.height;
@@ -74,53 +87,42 @@ export function initDitherBackground() {
         var px = col * cell;
         var py = row * cell;
 
-        // Moving center point for radial component
-        var cx = w * 0.5 + Math.sin(time * 0.4) * w * 0.3;
-        var cy = h * 0.5 + Math.cos(time * 0.3) * h * 0.3;
+        // Moving center for radial component
+        var cx = w * 0.5 + Math.sin(time * 0.3) * w * 0.25;
+        var cy = h * 0.5 + Math.cos(time * 0.25) * h * 0.25;
         var dx = (px - cx) / w;
         var dy = (py - cy) / h;
         var dist = Math.sqrt(dx * dx + dy * dy);
 
-        // g1: Radial pulse from moving center
-        var g1 = 0.5 + 0.5 * Math.sin(dist * 6 - time * 0.8);
+        // g1: Radial pulse — slow, wide
+        var g1 = 0.5 + 0.5 * Math.sin(dist * 4 - time * 0.6);
 
         // g2: Diagonal wave
-        var g2 = 0.5 + 0.5 * Math.sin((px * 0.004 + py * 0.003) + time * 0.5);
+        var g2 = 0.5 + 0.5 * Math.sin((px * 0.003 + py * 0.002) + time * 0.4);
 
-        // g3: Counter-diagonal wave
-        var g3 = 0.5 + 0.5 * Math.cos((py * 0.005 - px * 0.003) - time * 0.3);
+        // g3: Vertical drift
+        var g3 = 0.5 + 0.5 * Math.cos((py * 0.004) - time * 0.2);
 
-        // Combine: radial dominates (50%), diagonals add texture (25% each)
-        var val = (g1 * 0.5 + g2 * 0.25 + g3 * 0.25);
+        // Combine — balanced mix
+        var val = (g1 * 0.4 + g2 * 0.3 + g3 * 0.3);
 
-        // Power curve for more contrast
-        val = val * val;
-
-        // Bayer dither threshold
+        // Bayer dither: compare against threshold to create pattern
         var threshold = bayerMatrix[row & 7][col & 7];
-        var on = val > threshold;
 
-        // Determine pixel color
-        var r, g, b, a;
-        if (on && paletteColors) {
-          var rawVal = (g1 * 0.5 + g2 * 0.25 + g3 * 0.25);
-          var pos = rawVal * 3;
-          var ci = Math.min(2, Math.floor(pos));
-          var frac = pos - ci;
-          var cA = paletteColors[ci];
-          var cB = paletteColors[ci + 1];
-          r = Math.round(cA.r + (cB.r - cA.r) * frac);
-          g = Math.round(cA.g + (cB.g - cA.g) * frac);
-          b = Math.round(cA.b + (cB.b - cA.b) * frac);
-          a = ALPHA;
-        } else if (on) {
-          r = accentColor.r;
-          g = accentColor.g;
-          b = accentColor.b;
-          a = ALPHA;
-        } else {
-          r = 0; g = 0; b = 0; a = 0;
-        }
+        // Use threshold to pick between two gray levels
+        // val drives which part of the gray ramp we're in
+        var lo = val * 0.3;          // darker neighbor — stays near black
+        var hi = val * 0.5 + 0.4;    // brighter neighbor
+        var quantized = (val > threshold) ? hi : lo;
+
+        // Clamp to keep it in the dark zone (0–0.8 of palette range)
+        quantized = quantized * 0.8;
+
+        // Sample color from gray palette
+        var color = sampleGray(quantized);
+        var r = color.r;
+        var g = color.g;
+        var b = color.b;
 
         // Fill the cell block
         for (var sy = 0; sy < cell && py + sy < h; sy++) {
@@ -129,23 +131,18 @@ export function initDitherBackground() {
             data[idx]     = r;
             data[idx + 1] = g;
             data[idx + 2] = b;
-            data[idx + 3] = a;
+            data[idx + 3] = 255;
           }
         }
       }
     }
 
-    // Clear and draw
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(0, 0, w, h);
     ctx.putImageData(imgData, 0, 0);
-
-    // Advance time
     time += SPEED;
     animFrame = requestAnimationFrame(draw);
   }
 
-  // --- Start animation ---
+  // --- Start ---
   draw();
 
   // --- Public API ---
@@ -155,24 +152,6 @@ export function initDitherBackground() {
     },
     start: function () {
       if (!animFrame) draw();
-    },
-    setColor: function (hex) {
-      var r = parseInt(hex.slice(1, 3), 16);
-      var g = parseInt(hex.slice(3, 5), 16);
-      var b = parseInt(hex.slice(5, 7), 16);
-      accentColor = { r: r, g: g, b: b };
-    },
-    setPalette: function (hexArray) {
-      if (!hexArray) { paletteColors = null; return; }
-      paletteColors = hexArray.map(function (hex) {
-        return {
-          r: parseInt(hex.slice(1, 3), 16),
-          g: parseInt(hex.slice(3, 5), 16),
-          b: parseInt(hex.slice(5, 7), 16)
-        };
-      });
-    },
-    setSpeed: function (s) { SPEED = s; },
-    setCellSize: function (s) { CELL_SIZE = s; }
+    }
   };
 }
