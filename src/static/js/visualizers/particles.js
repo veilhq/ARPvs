@@ -6,7 +6,7 @@
  * into a tight orbit, silence lets them drift apart. Color based on velocity.
  */
 
-import { getPalette, paletteAt, getEnergy, getBandEnergy } from './utils.js';
+import { getPalette, paletteAt, getEnergy, getBandEnergy, getVisFade } from './utils.js';
 
 function ensureParticles(entry) {
   if (entry._particles) return entry._particles;
@@ -41,7 +41,7 @@ export function drawParticles({ canvas, ctx, options, freqData, activeCanvases }
   const compact = options.compact;
 
   // Fade trail
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+  ctx.fillStyle = getVisFade(0.1);
   ctx.fillRect(0, 0, w, h);
 
   if (!freqData) return;

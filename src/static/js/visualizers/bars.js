@@ -6,7 +6,7 @@
  * become nearly solid. Velocity-based palette coloring persists.
  */
 
-import { getPalette, paletteAt } from './utils.js';
+import { getPalette, paletteAt, getVisBg } from './utils.js';
 
 // 8x8 Bayer threshold matrix (normalized 0–1)
 const BAYER = [
@@ -47,6 +47,15 @@ export function drawBars({ canvas, ctx, options, freqData, activeCanvases }) {
   // Use ImageData for pixel-level dither rendering
   const imgData = ctx.createImageData(w, h);
   const data = imgData.data;
+
+  // Fill with background color
+  const bg = getVisBg();
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = bg.r;
+    data[i + 1] = bg.g;
+    data[i + 2] = bg.b;
+    data[i + 3] = 255;
+  }
 
   for (let i = 0; i < barCount; i++) {
     const val = freqData[i * step] / 255;

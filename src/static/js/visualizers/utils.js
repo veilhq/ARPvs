@@ -11,15 +11,36 @@ export function hexToRgb(hex) {
     r: parseInt(result[1], 16),
     g: parseInt(result[2], 16),
     b: parseInt(result[3], 16)
-  } : { r: 115, g: 255, b: 0 };
+  } : { r: 255, g: 0, b: 0 };
+}
+
+/**
+ * Check if the current theme is light mode.
+ */
+export function isLightMode() {
+  return document.documentElement.getAttribute('data-theme') === 'light';
 }
 
 /**
  * Read the full 4-color palette from CSS custom properties.
+ * In light mode, returns all-black for mono aesthetic.
  */
 export function getPalette() {
+  if (isLightMode()) {
+    const black = { r: 0, g: 0, b: 0 };
+    return {
+      accent: black,
+      warm:   black,
+      cool:   black,
+      comp:   black,
+      accentHex: '#000000',
+      warmHex: '#000000',
+      coolHex: '#000000',
+      compHex: '#000000',
+    };
+  }
   const root = getComputedStyle(document.documentElement);
-  const accent = root.getPropertyValue('--accent').trim() || '#73ff00';
+  const accent = root.getPropertyValue('--accent').trim() || '#ff0000';
   const warm   = root.getPropertyValue('--warm').trim()   || '#ffb000';
   const cool   = root.getPropertyValue('--cool').trim()   || '#00cccc';
   const comp   = root.getPropertyValue('--comp').trim()   || '#ff3333';
@@ -33,6 +54,21 @@ export function getPalette() {
     coolHex: cool,
     compHex: comp,
   };
+}
+
+/**
+ * Get the visualizer background color — black in dark mode, off-white in light mode.
+ */
+export function getVisBg() {
+  return isLightMode() ? { r: 228, g: 228, b: 228 } : { r: 10, g: 10, b: 10 };
+}
+
+/**
+ * Get a CSS rgba string for the visualizer fade/trail effect.
+ */
+export function getVisFade(alpha) {
+  const bg = getVisBg();
+  return `rgba(${bg.r}, ${bg.g}, ${bg.b}, ${alpha})`;
 }
 
 /**

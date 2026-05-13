@@ -12,7 +12,7 @@
 
 const STORAGE_KEY = 'arpvs-accent-color';
 const PALETTE_MODE_KEY = 'arpvs-palette-mode';
-const DEFAULT_ACCENT = '#73ff00';
+const DEFAULT_ACCENT = '#ff0000';
 
 // --- Color conversion utilities ---
 

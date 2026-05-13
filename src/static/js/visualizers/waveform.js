@@ -4,12 +4,14 @@
  * Multiple phase-shifted waveform traces in palette colors.
  */
 
-import { getPalette } from './utils.js';
+import { getPalette, getVisBg } from './utils.js';
 
 export function drawWaveform({ canvas, ctx, options, timeData }) {
   const w = canvas.width;
   const h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
+  const bg = getVisBg();
+  ctx.fillStyle = `rgb(${bg.r}, ${bg.g}, ${bg.b})`;
+  ctx.fillRect(0, 0, w, h);
 
   if (!timeData) return;
 

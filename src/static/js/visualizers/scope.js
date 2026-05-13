@@ -5,14 +5,14 @@
  * in palette colors and fade trails.
  */
 
-import { getPalette } from './utils.js';
+import { getPalette, getVisFade } from './utils.js';
 
 export function drawScope({ canvas, ctx, options, timeData }) {
   const w = canvas.width;
   const h = canvas.height;
 
   // Fade effect
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+  ctx.fillStyle = getVisFade(0.12);
   ctx.fillRect(0, 0, w, h);
 
   if (!timeData) return;

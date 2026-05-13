@@ -5,7 +5,7 @@
  * using the full palette. Mimics MiniMeters style.
  */
 
-import { getPalette } from './utils.js';
+import { getPalette, isLightMode, getVisBg } from './utils.js';
 
 export function drawSpectrogram({ canvas, ctx, freqData }) {
   const w = canvas.width;
@@ -43,7 +43,8 @@ export function drawSpectrogram({ canvas, ctx, freqData }) {
     const val = Math.max(0, (rawVal - noiseFloor) / (1.0 - noiseFloor));
 
     if (val < 0.01) {
-      ctx.fillStyle = '#000';
+      const bg = getVisBg();
+      ctx.fillStyle = `rgb(${bg.r},${bg.g},${bg.b})`;
       ctx.fillRect(w - shift, y, shift, 1);
       continue;
     }

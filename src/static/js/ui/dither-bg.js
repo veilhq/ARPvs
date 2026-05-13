@@ -19,7 +19,16 @@ export function initDitherBackground() {
   var SPEED = 0.015;
 
   // --- Gray palette (matches CSS hierarchy) ---
-  var GRAYS = [
+  // In light mode, use dark grays so the pattern is visible on the light bg
+  var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  var GRAYS = isLight ? [
+    { r: 228, g: 228, b: 228 }, // matches --bg #e4e4e4
+    { r: 210, g: 210, b: 210 },
+    { r: 180, g: 180, b: 180 },
+    { r: 150, g: 150, b: 150 },
+    { r: 120, g: 120, b: 120 },
+    { r: 80,  g: 80,  b: 80  },
+  ] : [
     { r: 0,  g: 0,  b: 0  },   // #000000 — pure black
     { r: 12, g: 12, b: 12 },   // #0c0c0c
     { r: 28, g: 28, b: 28 },   // #1c1c1c

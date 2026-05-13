@@ -5,7 +5,7 @@
  * palette color blending based on position and time.
  */
 
-import { getPalette, paletteAt, getEnergy } from './utils.js';
+import { getPalette, paletteAt, getEnergy, getVisBg } from './utils.js';
 
 export function drawDither({ canvas, ctx, options, freqData }) {
   const w = canvas.width;
@@ -70,7 +70,8 @@ export function drawDither({ canvas, ctx, options, freqData }) {
         g = Math.round(color.g * brightness);
         b = Math.round(color.b * brightness);
       } else {
-        r = 0; g = 0; b = 0;
+        const bg = getVisBg();
+        r = bg.r; g = bg.g; b = bg.b;
       }
 
       for (let sy = 0; sy < CELL && py + sy < h; sy++) {
