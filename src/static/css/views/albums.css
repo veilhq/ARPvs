@@ -232,6 +232,7 @@
 
 .album-expanded {
   padding: 0;
+  margin-top: -16px;
 }
 
 /* --- Hero section: large art + info side-by-side --- */
@@ -311,7 +312,7 @@
   font-size: 9px;
   cursor: pointer;
   padding: 4px 0;
-  margin-top: 160px;
+  margin-top: 16px;
   margin-bottom: 24px;
   transition: color 0.1s;
   display: flex;

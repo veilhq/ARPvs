@@ -176,21 +176,20 @@ export function initializeTheme() {
   applyAccent(savedColor);
 
   const picker = document.getElementById('accent-color');
-  if (picker) {
-    picker.value = savedColor;
-  }
+  if (picker) picker.value = savedColor;
 
   updateModeButton();
 }
 
 export function setupColorPicker() {
-  // Sync the accent button background on init
-  updateAccentButton();
-}
+  const picker = document.getElementById('accent-color');
+  if (!picker) return;
 
-function updateAccentButton() {
-  const btn = document.getElementById('accent-color');
-  if (btn) btn.style.background = getAccentColor();
+  picker.value = getAccentColor();
+
+  picker.addEventListener('input', (e) => {
+    setAccentColor(e.target.value);
+  });
 }
 
 // --- Palette mode toggle ---
@@ -215,8 +214,7 @@ export function setupPaletteMode() {
     localStorage.setItem(PALETTE_MODE_KEY, paletteMode);
     updateModeButton();
 
-    const picker = document.getElementById('accent-color');
-    applyAccent(picker ? picker.value : DEFAULT_ACCENT);
+    applyAccent(getAccentColor());
   });
 }
 

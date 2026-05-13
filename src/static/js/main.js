@@ -12,7 +12,6 @@ import { sortTracks, renderTrackList, renderAlbums, renderAlbumExpanded, setPlay
 import { playTrack, setOnTrackChange, toggleShuffle, toggleLoop } from './ui/player.js';
 import { initializeTheme, setupColorPicker, setupPaletteMode, setupScrollShadow, initializeThemeMode, setupThemeToggle } from './ui/theme.js';
 import { initSplash } from './ui/splash.js';
-import { setupColorPicker as setupCustomColorPicker } from './ui/color-picker.js';
 import { initializeIcons, createIcon } from './core/icons.js';
 import { onTrackSaved } from './modals/edit-track.js';
 import { onAlbumSaved } from './modals/edit-album.js';
@@ -158,7 +157,6 @@ async function init() {
   
   // Setup color picker and palette mode after DOM is ready
   setupColorPicker();
-  setupCustomColorPicker();
   setupPaletteMode();
   setupThemeToggle();
 

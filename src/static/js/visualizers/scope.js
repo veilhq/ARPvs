@@ -31,21 +31,53 @@ export function drawScope({ canvas, ctx, options, timeData }) {
   const traceAlphas = [0.85, 0.5, 0.3];
   const traceOffsets = [0, Math.floor(half * 0.1), Math.floor(half * 0.2)];
 
+  // Downsample factor — take every Nth point for a smoother curve
+  const step = compact ? 3 : 2;
+
   for (let t = 0; t < traces; t++) {
     const color = traceColors[t];
     const offset = traceOffsets[t];
 
     ctx.beginPath();
     ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${traceAlphas[t]})`;
-    ctx.lineWidth = compact ? 1 : (t === 0 ? 1.5 : 1);
+    ctx.lineWidth = compact ? 1.2 : (t === 0 ? 1.8 : 1.2);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
 
-    for (let i = 0; i < half; i++) {
+    // Build array of points (downsampled)
+    const points = [];
+    for (let i = 0; i < half; i += step) {
       const xi = (i + offset) % len;
       const yi = (i + half + offset) % len;
       const x = cx + ((timeData[xi] - 128) / 128) * scale;
       const y = cy + ((timeData[yi] - 128) / 128) * scale;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      points.push(x, y);
+    }
+
+    // Draw smooth curve using quadratic bezier through midpoints
+    if (points.length >= 4) {
+      ctx.moveTo(points[0], points[1]);
+
+      // Line to midpoint of first segment
+      const mx0 = (points[0] + points[2]) / 2;
+      const my0 = (points[1] + points[3]) / 2;
+      ctx.lineTo(mx0, my0);
+
+      // Quadratic curves using each point as control, midpoints as anchors
+      for (let i = 2; i < points.length - 2; i += 2) {
+        const cpx = points[i];
+        const cpy = points[i + 1];
+        const nx = (points[i] + points[i + 2]) / 2;
+        const ny = (points[i + 1] + points[i + 3]) / 2;
+        ctx.quadraticCurveTo(cpx, cpy, nx, ny);
+      }
+
+      // Final segment to last point
+      const last = points.length;
+      ctx.quadraticCurveTo(
+        points[last - 4], points[last - 3],
+        points[last - 2], points[last - 1]
+      );
     }
 
     ctx.stroke();
