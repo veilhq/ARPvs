@@ -5,7 +5,7 @@
  * Receives render callbacks from main.js to avoid circular imports.
  */
 
-import { state } from './state.js';
+import { state } from '../state.js';
 import { fetchTracks, fetchAlbums, fetchProjects, fetchUnexportedProjects, searchTracks } from './api.js';
 import {
   renderTrackList,
@@ -13,8 +13,8 @@ import {
   renderProjects,
   renderFavorites,
   renderUnexportedProjects,
-} from './views.js';
-import { togglePlay, playNext, playPrev } from './player.js';
+} from '../views/index.js';
+import { togglePlay, playNext, playPrev } from '../ui/player.js';
 
 const searchInput  = document.getElementById('search-input');
 const sidebarLinks = document.querySelectorAll('.sidebar-link');
@@ -84,7 +84,8 @@ searchInput.addEventListener('input', () => {
 // --- Keyboard shortcuts ---
 
 document.addEventListener('keydown', (e) => {
-  if (e.target === searchInput) return;
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
   if (e.code === 'Space')      { e.preventDefault(); togglePlay(); }
   if (e.code === 'ArrowRight') { playNext(); }
   if (e.code === 'ArrowLeft')  { playPrev(); }

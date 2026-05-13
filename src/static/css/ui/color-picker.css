@@ -1,0 +1,140 @@
+/* Custom Color Picker Popover */
+
+.color-picker-popover {
+  z-index: 2000;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  width: 200px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+.cp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cp-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.cp-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.1s;
+}
+
+.cp-close:hover {
+  color: var(--accent);
+}
+
+.cp-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* --- Hue slider --- */
+
+.cp-hue-wrap,
+.cp-sat-wrap,
+.cp-lit-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cp-hue-track {
+  flex: 1;
+  height: 12px;
+  border: 1px solid var(--border);
+  position: relative;
+  cursor: crosshair;
+  background: linear-gradient(to right,
+    #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000
+  );
+}
+
+.cp-sat-track,
+.cp-lit-track {
+  flex: 1;
+  height: 12px;
+  border: 1px solid var(--border);
+  position: relative;
+  cursor: crosshair;
+}
+
+.cp-hue-thumb,
+.cp-sat-thumb,
+.cp-lit-thumb {
+  position: absolute;
+  top: -2px;
+  width: 4px;
+  height: calc(100% + 4px);
+  background: var(--text-bright);
+  border: 1px solid var(--bg);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.cp-sat-label,
+.cp-lit-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+  width: 20px;
+  flex-shrink: 0;
+}
+
+/* --- Hex input row --- */
+
+.cp-hex-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cp-hex-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+
+.cp-hex-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 4px 6px;
+  outline: none;
+  letter-spacing: 0.04em;
+  transition: border-color 0.15s;
+}
+
+.cp-hex-input:focus {
+  border-color: var(--accent);
+}
+
+.cp-preview {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border-strong);
+  flex-shrink: 0;
+}

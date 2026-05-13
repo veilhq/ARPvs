@@ -1,11 +1,9 @@
-/* Modal — Shared overlay and dialog styling */
+/* Modal — Flat overlay, numbered sections */
 
 .edit-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.7);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -14,13 +12,13 @@
 }
 
 .edit-modal {
-  background: var(--bg-surface);
+  background: var(--bg);
   border: 1px solid var(--border-strong);
   width: 100%;
   max-width: 480px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
   font-family: var(--font-heading);
 }
 
@@ -28,13 +26,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
+  gap: 10px;
 }
 
 .edit-modal-title {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--accent);
@@ -44,24 +43,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   background: none;
-  border: none;
+  border: 1px solid transparent;
   color: var(--text-dim);
   cursor: pointer;
-  transition: color 0.15s;
+  transition: color 0.15s, border-color 0.15s;
 }
 
 .edit-modal-close:hover {
   color: var(--accent);
+  border-color: var(--accent);
 }
 
 .edit-modal-body {
   padding: 18px 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .edit-modal-footer {
@@ -89,7 +89,7 @@
 
 .edit-field label {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -100,7 +100,7 @@
   border: 1px solid var(--border-strong);
   color: var(--text-bright);
   font-family: var(--font-heading);
-  font-size: 14px;
+  font-size: 13px;
   padding: 8px 10px;
   outline: none;
   transition: border-color 0.15s;
@@ -112,17 +112,17 @@
 
 .edit-field-hint {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-dim);
 }
 
 .edit-field-hint code {
-  background: var(--bg);
-  padding: 1px 5px;
+  background: var(--bg-elevated);
+  padding: 1px 4px;
   border: 1px solid var(--border);
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .edit-field-hint-muted {
@@ -144,8 +144,8 @@
 .edit-field-checkbox input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border: 1px solid var(--border-strong);
   background: var(--bg);
   cursor: pointer;
@@ -162,8 +162,8 @@
 
 .edit-field-checkbox input[type="checkbox"]:checked::after {
   content: "";
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   background: var(--bg);
 }
 
@@ -174,15 +174,15 @@
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 9px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 7px 14px;
+  letter-spacing: 0.08em;
+  padding: 6px 12px;
   border: 1px solid var(--border-strong);
   background: var(--bg);
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  transition: color 0.15s, border-color 0.15s;
 }
 
 .edit-btn:hover {
@@ -191,24 +191,29 @@
 }
 
 .edit-btn svg {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
 }
 
 .edit-btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--bg);
+  border-color: var(--accent-border);
+  color: var(--accent);
+  background: var(--bg);
 }
 
 .edit-btn-primary:hover {
-  background: var(--text-bright);
-  border-color: var(--text-bright);
-  color: var(--bg);
+  border-color: var(--accent);
+  color: var(--text-bright);
+  background: var(--accent-dim);
 }
 
 .edit-btn-ghost {
   background: none;
+  border-color: transparent;
+}
+
+.edit-btn-ghost:hover {
+  border-color: var(--border-strong);
 }
 
 /* --- Large modal variant for album edit --- */
@@ -219,7 +224,7 @@
 
 .album-edit-grid {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 180px 1fr;
   gap: 20px;
 }
 
@@ -230,8 +235,8 @@
 }
 
 .album-edit-cover-preview {
-  width: 220px;
-  height: 220px;
+  width: 180px;
+  height: 180px;
   border: 1px solid var(--border-strong);
   background: var(--bg);
   overflow: hidden;
@@ -258,17 +263,17 @@
 
 .album-edit-cover-hint {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-dim);
 }
 
 .pill-ok {
   display: inline-block;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 1px 5px;
+  padding: 1px 4px;
   color: var(--accent);
   border: 1px solid var(--accent-border);
   margin-right: 4px;
@@ -295,22 +300,22 @@
 
 .track-picker-mode {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-dim);
   border: 1px solid var(--border);
-  padding: 2px 6px;
+  padding: 2px 5px;
 }
 
 .edit-btn-xs {
-  font-size: 9px;
-  padding: 3px 8px;
+  font-size: 8px;
+  padding: 3px 6px;
 }
 
 .track-picker-hint {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-dim);
 }
 
@@ -329,7 +334,7 @@
   grid-template-columns: 18px 26px 1fr auto auto;
   align-items: center;
   gap: 10px;
-  padding: 7px 10px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border);
   transition: background 0.1s, opacity 0.1s;
   cursor: grab;
@@ -368,14 +373,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-strong);
   color: var(--text-muted);
   cursor: pointer;
   padding: 0;
-  transition: color 0.1s, border-color 0.1s, background 0.1s;
+  transition: color 0.1s, border-color 0.1s;
 }
 
 .track-picker-row.included .track-picker-toggle {
@@ -390,8 +395,8 @@
 
 .track-picker-name {
   color: var(--text-bright);
-  font-size: 12px;
-  font-family: var(--font-heading);
+  font-size: 11px;
+  font-family: var(--font-mono);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -399,11 +404,13 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .track-picker-version {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 8px;
   color: var(--text-dim);
   border: 1px solid var(--border);
   padding: 1px 4px;
@@ -414,14 +421,14 @@
 
 .track-picker-sub {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-dim);
   white-space: nowrap;
 }
 
 .track-picker-duration {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
@@ -429,13 +436,13 @@
 /* Scope tag in modal header */
 .edit-scope-tag {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent);
   border: 1px solid var(--accent-border);
-  padding: 2px 6px;
+  padding: 2px 5px;
   margin-left: 10px;
   margin-right: auto;
 }
@@ -443,10 +450,6 @@
 .edit-scope-tag.edit-scope-global {
   color: var(--warm);
   border-color: rgba(255, 176, 0, 0.35);
-}
-
-.edit-modal-header {
-  gap: 10px;
 }
 
 /* Disabled state for edit buttons */
@@ -481,8 +484,8 @@
   background: var(--bg);
   border: 1px solid var(--border-strong);
   color: var(--text-bright);
-  font-family: var(--font-heading);
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
   padding: 6px 10px;
   outline: none;
   transition: border-color 0.15s;
@@ -496,7 +499,9 @@
   list-style: none;
   padding: 14px 12px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-dim);
   text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }

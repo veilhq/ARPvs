@@ -22,9 +22,9 @@ import {
   uploadAlbumCover,
   deleteAlbumCover,
   setAlbumTracks,
-} from './api.js';
-import { createIcon } from './icons.js';
-import { formatTime, parseVersion } from './utils.js';
+} from '../core/api.js';
+import { createIcon } from '../core/icons.js';
+import { formatTime, parseVersion } from '../core/utils.js';
 
 let modalEl = null;
 let onSavedCallback = null;

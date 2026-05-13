@@ -1,12 +1,21 @@
 /* ARPvs — Main Stylesheet */
-/* Modular CSS imports */
 
+/* Foundation */
 @import url('./base.css');
-@import url('./topbar.css');
-@import url('./sidebar.css');
-@import url('./layout.css');
-@import url('./tracks.css');
-@import url('./albums.css');
-@import url('./player.css');
-@import url('./splash.css');
-@import url('./modal.css');
+
+/* Core chrome */
+@import url('./core/topbar.css');
+@import url('./core/sidebar.css');
+@import url('./core/layout.css');
+
+/* UI components */
+@import url('./ui/player.css');
+@import url('./ui/splash.css');
+@import url('./ui/color-picker.css');
+
+/* Views */
+@import url('./views/tracks.css');
+@import url('./views/albums.css');
+
+/* Modals */
+@import url('./modals/modal.css');

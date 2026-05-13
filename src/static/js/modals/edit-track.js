@@ -12,10 +12,10 @@
  * and resetting to the underlying default.
  */
 
-import { state } from './state.js';
-import { updateTrack, updateAlbumTrack } from './api.js';
-import { createIcon } from './icons.js';
-import { groupTracksByVersion } from './utils.js';
+import { state } from '../state.js';
+import { updateTrack, updateAlbumTrack } from '../core/api.js';
+import { createIcon } from '../core/icons.js';
+import { groupTracksByVersion } from '../core/utils.js';
 
 let modalEl = null;
 let onSavedCallback = null;

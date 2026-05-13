@@ -1,0 +1,138 @@
+/* Sidebar — Numbered index navigation + palette controls */
+
+.sidebar {
+  border-right: 1px solid var(--border);
+  padding: 20px 0;
+  overflow-y: auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-section {
+  margin-bottom: 20px;
+}
+
+.sidebar-label {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0 16px;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 11px;
+  border-left: none;
+  transition: color 0.1s;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sidebar-link:hover {
+  color: var(--text);
+}
+
+.sidebar-link.active {
+  color: var(--accent);
+}
+
+/* Active indicator dot */
+.sidebar-link.active::before {
+  content: "●";
+  font-size: 6px;
+  color: var(--accent);
+  margin-right: -4px;
+}
+
+/* --- Palette controls at bottom --- */
+
+.sidebar-palette {
+  margin-top: auto;
+  margin-bottom: 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-palette-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  padding: 0 16px;
+}
+
+/* Accent color button */
+.accent-picker {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--border-strong);
+  background: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  transition: border-color 0.2s var(--ease);
+}
+
+.accent-picker:hover {
+  border-color: var(--accent);
+}
+
+/* 2x2 swatch grid */
+.palette-preview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  padding: 4px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  box-sizing: border-box;
+}
+
+.palette-preview .swatch {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  transition: background 0.3s var(--ease);
+}
+
+.palette-preview .swatch:nth-child(1) { background: var(--accent); }
+.palette-preview .swatch:nth-child(2) { background: var(--warm); }
+.palette-preview .swatch:nth-child(3) { background: var(--cool); }
+.palette-preview .swatch:nth-child(4) { background: var(--comp); }
+
+/* Palette mode toggle button */
+.palette-mode-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  padding: 0;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.palette-mode-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}

@@ -1,0 +1,132 @@
+/* Topbar — Minimal flat header */
+
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  z-index: 100;
+  gap: 12px;
+}
+
+.topbar > * {
+  position: relative;
+  z-index: 1;
+}
+
+.topbar-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  line-height: 1;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.topbar-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.topbar-search {
+  margin-left: auto;
+}
+
+.topbar-search input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 4px 10px;
+  width: 180px;
+  outline: none;
+  transition: border-color 0.15s, width 0.2s var(--ease);
+  letter-spacing: 0.02em;
+}
+
+.topbar-search input::placeholder {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 9px;
+}
+
+.topbar-search input:focus {
+  border-color: var(--accent-border);
+  width: 260px;
+}
+
+/* Icon buttons in topbar */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 0;
+  cursor: pointer;
+  margin: 0;
+  box-sizing: border-box;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.icon-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.icon-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.icon-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Reload button */
+.topbar-reload {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.1s, border-color 0.1s;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.topbar-reload:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.topbar-reload svg {
+  width: 12px;
+  height: 12px;
+}

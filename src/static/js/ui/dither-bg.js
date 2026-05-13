@@ -21,11 +21,11 @@ export function initDitherBackground() {
   // --- Gray palette (matches CSS hierarchy) ---
   var GRAYS = [
     { r: 0,  g: 0,  b: 0  },   // #000000 — pure black
-    { r: 10, g: 10, b: 10 },   // #0a0a0a
-    { r: 24, g: 24, b: 24 },   // #181818
-    { r: 42, g: 42, b: 42 },   // #2a2a2a
-    { r: 60, g: 60, b: 60 },   // #3c3c3c
-    { r: 80, g: 80, b: 80 },   // #505050
+    { r: 12, g: 12, b: 12 },   // #0c0c0c
+    { r: 28, g: 28, b: 28 },   // #1c1c1c
+    { r: 48, g: 48, b: 48 },   // #303030
+    { r: 72, g: 72, b: 72 },   // #484848
+    { r: 100, g: 100, b: 100 }, // #646464
   ];
 
   // --- Bayer 8×8 ordered dither matrix ---
@@ -115,8 +115,8 @@ export function initDitherBackground() {
         var hi = val * 0.5 + 0.4;    // brighter neighbor
         var quantized = (val > threshold) ? hi : lo;
 
-        // Clamp to keep it in the dark zone (0–0.8 of palette range)
-        quantized = quantized * 0.8;
+        // Clamp to keep it in the darker zone (0–0.85 of palette range)
+        quantized = quantized * 0.85;
 
         // Sample color from gray palette
         var color = sampleGray(quantized);

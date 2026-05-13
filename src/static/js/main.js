@@ -7,20 +7,22 @@
  */
 
 import { state } from './state.js';
-import { fetchTracks, fetchTrackTags, fetchLibrarySummary, fetchAlbums } from './api.js';
-import { sortTracks, renderTrackList, renderAlbums, renderAlbumExpanded, setPlayTrack, bumpCoverCache, refreshCurrentView } from './views.js';
-import { playTrack, setOnTrackChange, toggleShuffle, toggleLoop } from './player.js';
-import { initializeTheme, setupColorPicker, setupPaletteMode, setupScrollShadow } from './theme.js';
-import { initSplash } from './splash.js';
-import { initializeIcons, createIcon } from './icons.js';
-import { onTrackSaved } from './edit-track.js';
-import { onAlbumSaved } from './edit-album.js';
+import { fetchTracks, fetchTrackTags, fetchLibrarySummary, fetchAlbums } from './core/api.js';
+import { sortTracks, renderTrackList, renderAlbums, renderAlbumExpanded, setPlayTrack, bumpCoverCache, refreshCurrentView } from './views/index.js';
+import { playTrack, setOnTrackChange, toggleShuffle, toggleLoop } from './ui/player.js';
+import { initializeTheme, setupColorPicker, setupPaletteMode, setupScrollShadow, initializeThemeMode, setupThemeToggle } from './ui/theme.js';
+import { initSplash } from './ui/splash.js';
+import { setupColorPicker as setupCustomColorPicker } from './ui/color-picker.js';
+import { initializeIcons, createIcon } from './core/icons.js';
+import { onTrackSaved } from './modals/edit-track.js';
+import { onAlbumSaved } from './modals/edit-album.js';
 
 // --- App constants ---
 const SPLASH_DURATION_MS = 3000;
 const SPLASH_INIT_DELAY_MS = 100;
 
 // Initialize theme from storage
+initializeThemeMode();
 initializeTheme();
 setupScrollShadow();
 
@@ -61,7 +63,7 @@ onAlbumSaved(async ({ coverChanged } = {}) => {
 });
 
 // nav.js registers its own event listeners on import — just pull it in.
-import './nav.js';
+import './core/nav.js';
 
 // Setup playback mode buttons
 const btnShuffle = document.getElementById('btn-shuffle');
@@ -145,7 +147,9 @@ async function init() {
   
   // Setup color picker and palette mode after DOM is ready
   setupColorPicker();
+  setupCustomColorPicker();
   setupPaletteMode();
+  setupThemeToggle();
 }
 
 init();

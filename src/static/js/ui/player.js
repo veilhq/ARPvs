@@ -7,9 +7,9 @@
  * direction one-way: player → views, never views → player directly.
  */
 
-import { state } from './state.js';
-import { formatTime } from './utils.js';
-import { createIcon } from './icons.js';
+import { state } from '../state.js';
+import { formatTime } from '../core/utils.js';
+import { createIcon } from '../core/icons.js';
 import { ditherCanvasHtml, bindDitherCanvases } from './dither-bg.js';
 
 // Keep call sites short; createIcon already covers every name we need.

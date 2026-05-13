@@ -1,4 +1,5 @@
 /* ARPvs — Base Styles & Variables */
+/* SearchSystem × Kurppa Hosk — archival index aesthetic */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -8,15 +9,15 @@
 
 :root {
   --bg: #000000;
-  --bg-surface: #0a0a0a;
-  --bg-card: #0a0a0a;
-  --bg-elevated: #0e0e0e;
+  --bg-surface: #050505;
+  --bg-card: #050505;
+  --bg-elevated: #0a0a0a;
   --border: #1a1a1a;
   --border-strong: #2a2a2a;
   --text-bright: #ffffff;
-  --text: #d0d0d0;
-  --text-muted: #808080;
-  --text-dim: #505050;
+  --text: #c8c8c8;
+  --text-muted: #707070;
+  --text-dim: #404040;
   --accent: #73ff00;
   --accent-dim: rgba(115, 255, 0, 0.04);
   --accent-glow: rgba(115, 255, 0, 0.06);
@@ -26,9 +27,18 @@
   --comp: #ff3333;
   --alert: #ff0041;
   --font: 'Departure Mono', monospace;
-  --font-heading: 'IBM Plex Sans', 'Helvetica Neue', 'Helvetica', sans-serif;
+  --font-heading: 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
   --font-mono: 'Departure Mono', monospace;
+  --font-display: 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 48px;
+  --space-2xl: 80px;
 }
 
 html, body {
@@ -36,27 +46,27 @@ html, body {
   overflow: hidden;
 }
 
-/* Custom scrollbars */
+/* Custom scrollbars — thin, minimal */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-surface);
+  background: var(--bg);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--accent);
+  background: var(--border-strong);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--warm);
+  background: var(--text-dim);
 }
 
 /* Firefox scrollbars */
 * {
-  scrollbar-color: var(--accent) var(--bg-surface);
+  scrollbar-color: var(--border-strong) var(--bg);
   scrollbar-width: thin;
 }
 
@@ -64,7 +74,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.5;
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: unset;
@@ -74,4 +84,49 @@ body {
   color: var(--text-dim);
   font-size: 10px;
   font-family: var(--font-mono);
+}
+
+/* Utility: hairline rule */
+.rule {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
+
+/* ============================================
+   Light Mode
+   ============================================ */
+
+[data-theme="light"] {
+  --bg: #f5f5f0;
+  --bg-surface: #eaeae5;
+  --bg-card: #eaeae5;
+  --bg-elevated: #e0e0db;
+  --border: #d0d0cb;
+  --border-strong: #b0b0ab;
+  --text-bright: #111111;
+  --text: #2a2a2a;
+  --text-muted: #6a6a6a;
+  --text-dim: #999999;
+}
+
+[data-theme="light"] body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+}
+
+[data-theme="light"] .splash-screen {
+  background: var(--bg);
+}
+
+[data-theme="light"] #dither-bg {
+  opacity: 0.15;
 }

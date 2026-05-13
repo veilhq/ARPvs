@@ -1,4 +1,6 @@
-// Splash screen controller + screensaver mode
+/**
+ * splash.js — Diagnostic boot sequence splash screen.
+ */
 import { initDitherBackground } from './dither-bg.js';
 
 let splashElement = null;
@@ -10,6 +12,17 @@ export function initSplash(duration = 3000) {
   // Start the dither background animation
   initDitherBackground();
 
+  // Boot sequence lines
+  const bootLines = splashElement.querySelector('.splash-boot');
+  if (bootLines) {
+    const lines = bootLines.querySelectorAll('.boot-line');
+    lines.forEach((line, i) => {
+      setTimeout(() => {
+        line.classList.add('visible');
+      }, 400 + i * 300);
+    });
+  }
+
   // Fade out after specified duration
   setTimeout(() => {
     hideSplash();
@@ -17,7 +30,6 @@ export function initSplash(duration = 3000) {
 
   // Setup screensaver shortcut (S key)
   document.addEventListener('keydown', (e) => {
-    // Don't trigger if typing in an input/textarea
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.key === 's' || e.key === 'S') {
       e.preventDefault();
@@ -42,29 +54,25 @@ function hideSplash() {
 function showScreensaver() {
   if (!splashElement) return;
 
-  // Show it
   splashElement.style.display = 'flex';
   splashElement.style.opacity = '1';
 
-  // Restart the dither animation
   if (window.ditherBackground) {
     window.ditherBackground.start();
   } else {
     initDitherBackground();
   }
 
-  // Dismiss on click or keypress
   function dismiss() {
     hideSplash();
     document.removeEventListener('click', dismiss);
     document.removeEventListener('keydown', dismissOnKey);
   }
 
-  function dismissOnKey(e) {
+  function dismissOnKey() {
     dismiss();
   }
 
-  // Delay attaching listeners so the triggering event doesn't immediately dismiss
   setTimeout(() => {
     document.addEventListener('click', dismiss);
     document.addEventListener('keydown', dismissOnKey);

@@ -1,0 +1,225 @@
+/* Player Bar — Archival, utilitarian */
+
+.player-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  z-index: 100;
+}
+
+/* Progress bar spans full width at top of player */
+.player-progress-top {
+  width: 100%;
+  height: 2px;
+  background: var(--border);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.1s linear;
+}
+
+/* Inner layout */
+.player-inner {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 16px;
+}
+
+/* Now playing */
+.player-now-playing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 180px;
+  overflow: hidden;
+}
+
+.player-art {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.player-art-placeholder {
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.player-art-placeholder svg {
+  width: 14px;
+  height: 14px;
+}
+
+.player-track-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.player-title {
+  color: var(--text-bright);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.player-sub {
+  color: var(--text-dim);
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+}
+
+/* Controls */
+.player-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.player-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.1s, border-color 0.1s;
+  padding: 0;
+}
+
+.player-btn:hover {
+  color: var(--text-bright);
+  border-color: var(--border-strong);
+}
+
+.player-btn.active {
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+.player-btn-play {
+  width: 32px;
+  height: 32px;
+  border-color: var(--border-strong);
+  color: var(--text-bright);
+}
+
+.player-btn-play:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Time display */
+.player-time-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.player-time {
+  font-size: 9px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.player-time-sep {
+  font-size: 9px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+/* Volume */
+.player-volume {
+  flex-shrink: 0;
+}
+
+.player-volume input[type="range"] {
+  width: 60px;
+  height: 2px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+
+.player-volume input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 8px;
+  height: 8px;
+  background: var(--text-muted);
+  border: none;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.player-volume input[type="range"]::-webkit-slider-thumb:hover {
+  background: var(--accent);
+}
+
+.player-volume input[type="range"]::-moz-range-thumb {
+  width: 8px;
+  height: 8px;
+  background: var(--text-muted);
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.player-volume input[type="range"]::-moz-range-track {
+  height: 2px;
+  background: var(--border);
+}
+
+/* Dither canvas in player art */
+.player-art canvas.dither-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
