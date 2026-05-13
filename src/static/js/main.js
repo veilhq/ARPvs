@@ -16,6 +16,7 @@ import { setupColorPicker as setupCustomColorPicker } from './ui/color-picker.js
 import { initializeIcons, createIcon } from './core/icons.js';
 import { onTrackSaved } from './modals/edit-track.js';
 import { onAlbumSaved } from './modals/edit-album.js';
+import { initAudioContext, resumeAudioContext, registerCanvas, enterFullscreen, VISUALIZER_MODES } from './ui/visualizer.js';
 
 // --- App constants ---
 const SPLASH_DURATION_MS = 3000;
@@ -40,12 +41,22 @@ setTimeout(() => initSplash(SPLASH_DURATION_MS), SPLASH_INIT_DELAY_MS);
 setPlayTrack(playTrack);
 setOnTrackChange(() => {
   const cv = state.currentView;
-  if (cv && cv.type === 'album-expanded') {
+  if (!cv) return;
+
+  // Views that don't show a track list — don't re-render at all
+  if (cv.type === 'albums' || cv.type === 'projects' || cv.type === 'unexported' ||
+      cv.type === 'favorites' || cv.type === 'visualizers') {
+    return;
+  }
+
+  if (cv.type === 'album-expanded') {
     const { albumId, albumName } = cv.params || {};
     const cover = albumId != null ? `/api/albums/${albumId}/cover` : '';
     renderAlbumExpanded(albumName, cover, state.tracks, { albumId });
     return;
   }
+
+  // 'all' and 'search' — re-render the track list in place
   renderTrackList(state.tracks);
 });
 
@@ -150,6 +161,47 @@ async function init() {
   setupCustomColorPicker();
   setupPaletteMode();
   setupThemeToggle();
+
+  // Initialize visualizer meter bar
+  const meterBar = document.getElementById('viz-meter-bar');
+  if (meterBar) {
+    const initMeterOnPlay = () => {
+      initAudioContext();
+      resumeAudioContext();
+      // Size and register each meter cell canvas
+      const cells = meterBar.querySelectorAll('.viz-meter-cell');
+      cells.forEach(cell => {
+        const canvas = cell.querySelector('.viz-meter-canvas');
+        const rect = cell.getBoundingClientRect();
+        canvas.width = Math.max(40, Math.round(rect.width));
+        canvas.height = Math.max(20, Math.round(rect.height));
+        const mode = cell.dataset.mode;
+        registerCanvas(canvas, mode, { compact: true });
+      });
+      document.removeEventListener('click', initMeterOnPlay);
+    };
+    document.addEventListener('click', initMeterOnPlay);
+
+    // Click a cell to launch that mode fullscreen
+    meterBar.querySelectorAll('.viz-meter-cell').forEach(cell => {
+      cell.addEventListener('click', () => {
+        initAudioContext();
+        resumeAudioContext();
+        enterFullscreen(cell.dataset.mode);
+      });
+    });
+  }
+
+  // Fullscreen visualizer button
+  const btnVizFullscreen = document.getElementById('btn-viz-fullscreen');
+  if (btnVizFullscreen) {
+    btnVizFullscreen.innerHTML = createIcon('maximize', 14);
+    btnVizFullscreen.addEventListener('click', () => {
+      initAudioContext();
+      resumeAudioContext();
+      enterFullscreen(state.visualizerMode || 'bars');
+    });
+  }
 }
 
 init();

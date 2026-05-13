@@ -27,5 +27,10 @@ export const state = {
   // Album/collection playback
   playlistTracks: null,  // Tracks for current album/collection (null = use main tracks)
   playlistName: null,    // Name of current album/collection
+
+  // Visualizer
+  visualizerMode: 'bars',       // Active compact visualizer mode
+  visualizerFullscreen: false,  // Whether fullscreen visualizer is open
+  ambientMode: false,           // Ambient mode — higher smoothing, slower transitions
 };
 

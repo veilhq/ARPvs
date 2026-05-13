@@ -59,6 +59,11 @@ export async function refreshCurrentView() {
     case 'favorites':
       renderFavorites();
       return;
+    case 'visualizers': {
+      const { renderVisualizers } = await import('./visualizers.js');
+      renderVisualizers();
+      return;
+    }
     case 'all':
     default: {
       const tracks = await fetchTracks();

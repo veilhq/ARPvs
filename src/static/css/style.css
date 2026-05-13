@@ -12,6 +12,7 @@
 @import url('./ui/player.css');
 @import url('./ui/splash.css');
 @import url('./ui/color-picker.css');
+@import url('./ui/visualizer.css');
 
 /* Views */
 @import url('./views/tracks.css');

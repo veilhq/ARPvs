@@ -1,0 +1,299 @@
+/* Visualizer — Fullscreen, compact, and preview grid */
+
+/* --- Fullscreen overlay --- */
+
+.visualizer-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.visualizer-fullscreen-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.visualizer-fullscreen-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  opacity: 0;
+  transition: opacity 0.3s var(--ease);
+}
+
+.visualizer-fullscreen:hover .visualizer-fullscreen-controls {
+  opacity: 1;
+}
+
+.visualizer-fullscreen-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.visualizer-mode-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.visualizer-track-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.visualizer-fullscreen-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.visualizer-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-strong);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.15s var(--ease);
+}
+
+.visualizer-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(115, 255, 0, 0.05);
+}
+
+/* --- Visualizer meter bar (above player) --- */
+
+.viz-meter-bar {
+  position: fixed;
+  bottom: 56px;
+  left: 0;
+  right: 0;
+  height: 40px;
+  display: flex;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  z-index: 99;
+}
+
+.viz-meter-cell {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  transition: border-color 0.15s var(--ease);
+}
+
+.viz-meter-cell:last-child {
+  border-right: none;
+}
+
+.viz-meter-cell:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-dim);
+}
+
+.viz-meter-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* --- Preview grid (visualizers page) --- */
+
+.visualizer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  padding: 0 0 80px;
+}
+
+.visualizer-card {
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.visualizer-card:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-elevated);
+}
+
+.visualizer-card-active {
+  border-color: var(--accent-border);
+}
+
+.visualizer-card-active:hover {
+  border-color: var(--accent);
+}
+
+.visualizer-card-preview {
+  width: 100%;
+  height: 160px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+  background: #000;
+}
+
+.visualizer-preview-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.visualizer-card-info {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.visualizer-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.visualizer-card-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-bright);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.visualizer-card-badge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  padding: 1px 5px;
+  text-transform: uppercase;
+}
+
+.visualizer-card-desc {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.visualizer-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.visualizer-card-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s var(--ease);
+}
+
+.visualizer-card-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.visualizer-card-btn-select {
+  /* default styling */
+}
+
+.visualizer-card-active .visualizer-card-btn-select {
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+/* --- Hint banner --- */
+
+.visualizer-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  background: var(--accent-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.visualizer-hint-icon {
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+}
+
+
+/* --- Palette preview in spec sheet --- */
+
+.visualizer-palette-preview {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.visualizer-palette-dot {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* --- Ambient mode toggle --- */
+
+.visualizer-ambient-toggle {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.visualizer-ambient-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.visualizer-ambient-toggle-active {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-dim);
+}

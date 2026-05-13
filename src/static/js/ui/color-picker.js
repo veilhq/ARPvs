@@ -1,12 +1,17 @@
 /**
- * color-picker.js — Custom inline color picker for the accent color.
- * Replaces the native <input type="color"> with a styled popover.
+ * color-picker.js — Custom inline HSL color picker for the accent color.
+ * Uses pointer events for reliable cross-browser drag handling.
  */
 
 import { setAccentColor, getAccentColor } from './theme.js';
 
 let pickerEl = null;
 let isOpen = false;
+
+// --- HSL state ---
+let hue = 0;
+let sat = 1;
+let lit = 0.5;
 
 // --- Color math ---
 
@@ -31,9 +36,9 @@ function hslToHex(h, s, l) {
 }
 
 function hexToHsl(hex) {
-  let r = parseInt(hex.slice(1, 3), 16) / 255;
-  let g = parseInt(hex.slice(3, 5), 16) / 255;
-  let b = parseInt(hex.slice(5, 7), 16) / 255;
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
   const max = Math.max(r, g, b), min = Math.min(r, g, b);
   let h, s, l = (max + min) / 2;
   if (max === min) {
@@ -49,26 +54,81 @@ function hexToHsl(hex) {
   return { h, s, l };
 }
 
-// --- State ---
-
-let currentHue = 100;
-let currentSat = 1;
-let currentLit = 0.5;
+function currentHex() {
+  return hslToHex(hue, sat, lit);
+}
 
 function syncFromHex(hex) {
-  const { h, s, l } = hexToHsl(hex);
-  currentHue = h;
-  currentSat = s;
-  currentLit = l;
+  const parsed = hexToHsl(hex);
+  hue = parsed.h;
+  sat = parsed.s;
+  lit = parsed.l;
 }
 
-function currentHex() {
-  return hslToHex(currentHue, currentSat, currentLit);
+// --- Slider logic using pointer capture ---
+
+function makeSlider(track, thumb, onValue) {
+  function posFromEvent(e) {
+    const rect = track.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  }
+
+  track.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    track.setPointerCapture(e.pointerId);
+    onValue(posFromEvent(e));
+  });
+
+  track.addEventListener('pointermove', (e) => {
+    if (track.hasPointerCapture(e.pointerId)) {
+      onValue(posFromEvent(e));
+    }
+  });
+
+  track.addEventListener('pointerup', (e) => {
+    track.releasePointerCapture(e.pointerId);
+  });
 }
 
-// --- Build picker DOM ---
+// --- Render current state into DOM ---
 
-function createPicker() {
+function render() {
+  if (!pickerEl) return;
+  const hex = currentHex();
+
+  // Thumb positions
+  pickerEl.querySelector('.cp-hue-thumb').style.left = `${(hue / 360) * 100}%`;
+  pickerEl.querySelector('.cp-sat-thumb').style.left = `${sat * 100}%`;
+  pickerEl.querySelector('.cp-lit-thumb').style.left = `${lit * 100}%`;
+
+  // Dynamic gradients
+  const satTrack = pickerEl.querySelector('.cp-sat-track');
+  satTrack.style.background = `linear-gradient(to right, ${hslToHex(hue, 0, lit)}, ${hslToHex(hue, 1, lit)})`;
+
+  const litTrack = pickerEl.querySelector('.cp-lit-track');
+  litTrack.style.background = `linear-gradient(to right, #000, ${hslToHex(hue, sat, 0.5)}, #fff)`;
+
+  // Hex input (don't overwrite while user is typing)
+  const hexInput = pickerEl.querySelector('.cp-hex-input');
+  if (document.activeElement !== hexInput) {
+    hexInput.value = hex;
+  }
+
+  // Preview swatch
+  pickerEl.querySelector('.cp-preview').style.background = hex;
+}
+
+function applyColor() {
+  const hex = currentHex();
+  setAccentColor(hex);
+  const btn = document.getElementById('accent-color');
+  if (btn) btn.style.background = hex;
+  render();
+}
+
+// --- Build DOM ---
+
+function createPickerDOM() {
   const el = document.createElement('div');
   el.className = 'color-picker-popover';
   el.innerHTML = `
@@ -77,22 +137,22 @@ function createPicker() {
       <button class="cp-close">&times;</button>
     </div>
     <div class="cp-body">
-      <div class="cp-hue-wrap">
-        <div class="cp-hue-track">
-          <div class="cp-hue-thumb"></div>
+      <div class="cp-slider-row">
+        <div class="cp-hue-track cp-track">
+          <div class="cp-hue-thumb cp-thumb"></div>
         </div>
       </div>
-      <div class="cp-sat-wrap">
-        <div class="cp-sat-track">
-          <div class="cp-sat-thumb"></div>
+      <div class="cp-slider-row">
+        <div class="cp-sat-track cp-track">
+          <div class="cp-sat-thumb cp-thumb"></div>
         </div>
-        <span class="cp-sat-label">SAT</span>
+        <span class="cp-track-label">SAT</span>
       </div>
-      <div class="cp-lit-wrap">
-        <div class="cp-lit-track">
-          <div class="cp-lit-thumb"></div>
+      <div class="cp-slider-row">
+        <div class="cp-lit-track cp-track">
+          <div class="cp-lit-thumb cp-thumb"></div>
         </div>
-        <span class="cp-lit-label">LIT</span>
+        <span class="cp-track-label">LIT</span>
       </div>
       <div class="cp-hex-row">
         <span class="cp-hex-label">HEX</span>
@@ -104,123 +164,43 @@ function createPicker() {
   return el;
 }
 
-// --- Slider interaction ---
-
-function bindSlider(track, thumb, onChange) {
-  let dragging = false;
-
-  function update(e) {
-    const rect = track.getBoundingClientRect();
-    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    onChange(x);
-  }
-
-  track.addEventListener('mousedown', (e) => {
-    dragging = true;
-    update(e);
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', (e) => {
-    if (dragging) update(e);
-  });
-
-  document.addEventListener('mouseup', () => {
-    dragging = false;
-  });
-}
-
-// --- Render state into DOM ---
-
-function renderPicker() {
-  if (!pickerEl) return;
-
-  const hueThumb = pickerEl.querySelector('.cp-hue-thumb');
-  const satThumb = pickerEl.querySelector('.cp-sat-thumb');
-  const litThumb = pickerEl.querySelector('.cp-lit-thumb');
-  const satTrack = pickerEl.querySelector('.cp-sat-track');
-  const litTrack = pickerEl.querySelector('.cp-lit-track');
-  const hexInput = pickerEl.querySelector('.cp-hex-input');
-  const preview = pickerEl.querySelector('.cp-preview');
-
-  const hex = currentHex();
-
-  hueThumb.style.left = `${(currentHue / 360) * 100}%`;
-  satThumb.style.left = `${currentSat * 100}%`;
-  litThumb.style.left = `${currentLit * 100}%`;
-
-  // Sat track gradient: grey to full-sat at current hue
-  satTrack.style.background = `linear-gradient(to right, ${hslToHex(currentHue, 0, currentLit)}, ${hslToHex(currentHue, 1, currentLit)})`;
-
-  // Lit track gradient: black to white through current hue
-  litTrack.style.background = `linear-gradient(to right, #000, ${hslToHex(currentHue, currentSat, 0.5)}, #fff)`;
-
-  if (document.activeElement !== hexInput) {
-    hexInput.value = hex;
-  }
-  preview.style.background = hex;
-}
-
-// --- Public API ---
-
-export function setupColorPicker() {
-  const trigger = document.querySelector('.accent-picker');
-  if (!trigger) return;
-
-  // Hide the native input visually but keep it for form compat
-  trigger.style.cursor = 'pointer';
-
-  // Replace click behavior
-  trigger.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (isOpen) {
-      closePicker();
-    } else {
-      openPicker(trigger);
-    }
-  });
-}
+// --- Open / Close ---
 
 function openPicker(anchor) {
   if (pickerEl) closePicker();
 
   syncFromHex(getAccentColor());
-  pickerEl = createPicker();
+  pickerEl = createPickerDOM();
   document.body.appendChild(pickerEl);
 
-  // Position above the anchor
+  // Position above the trigger button
   const rect = anchor.getBoundingClientRect();
   pickerEl.style.position = 'fixed';
   pickerEl.style.bottom = `${window.innerHeight - rect.top + 8}px`;
   pickerEl.style.left = `${rect.left}px`;
 
-  isOpen = true;
-  renderPicker();
+  render();
 
   // Bind sliders
-  bindSlider(
+  makeSlider(
     pickerEl.querySelector('.cp-hue-track'),
     pickerEl.querySelector('.cp-hue-thumb'),
-    (x) => { currentHue = x * 360; applyColor(); }
+    (v) => { hue = v * 360; applyColor(); }
   );
-
-  bindSlider(
+  makeSlider(
     pickerEl.querySelector('.cp-sat-track'),
     pickerEl.querySelector('.cp-sat-thumb'),
-    (x) => { currentSat = x; applyColor(); }
+    (v) => { sat = v; applyColor(); }
   );
-
-  bindSlider(
+  makeSlider(
     pickerEl.querySelector('.cp-lit-track'),
     pickerEl.querySelector('.cp-lit-thumb'),
-    (x) => { currentLit = x; applyColor(); }
+    (v) => { lit = v; applyColor(); }
   );
 
   // Hex input
-  const hexInput = pickerEl.querySelector('.cp-hex-input');
-  hexInput.addEventListener('input', () => {
-    let val = hexInput.value.trim();
+  pickerEl.querySelector('.cp-hex-input').addEventListener('input', (e) => {
+    let val = e.target.value.trim();
     if (!val.startsWith('#')) val = '#' + val;
     if (/^#[0-9a-fA-F]{6}$/.test(val)) {
       syncFromHex(val);
@@ -231,9 +211,10 @@ function openPicker(anchor) {
   // Close button
   pickerEl.querySelector('.cp-close').addEventListener('click', closePicker);
 
-  // Close on outside click (delayed to avoid immediate close)
+  // Close on outside click (next tick to avoid immediate trigger)
+  isOpen = true;
   setTimeout(() => {
-    document.addEventListener('mousedown', outsideClickHandler);
+    document.addEventListener('pointerdown', onOutsideClick);
   }, 0);
 }
 
@@ -243,22 +224,28 @@ function closePicker() {
   }
   pickerEl = null;
   isOpen = false;
-  document.removeEventListener('mousedown', outsideClickHandler);
+  document.removeEventListener('pointerdown', onOutsideClick);
 }
 
-function outsideClickHandler(e) {
+function onOutsideClick(e) {
   if (pickerEl && !pickerEl.contains(e.target) && !e.target.closest('.accent-picker')) {
     closePicker();
   }
 }
 
-function applyColor() {
-  const hex = currentHex();
-  setAccentColor(hex);
+// --- Public setup ---
 
-  // Sync the accent button background
-  const accentBtn = document.getElementById('accent-color');
-  if (accentBtn) accentBtn.style.background = hex;
+export function setupColorPicker() {
+  const trigger = document.querySelector('.accent-picker');
+  if (!trigger) return;
 
-  renderPicker();
+  trigger.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isOpen) {
+      closePicker();
+    } else {
+      openPicker(trigger);
+    }
+  });
 }

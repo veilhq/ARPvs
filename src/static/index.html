@@ -43,6 +43,10 @@
         <div class="sidebar-label">Organize</div>
         <a href="#" class="sidebar-link" data-view="favorites">favorites</a>
       </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Visual</div>
+        <a href="#" class="sidebar-link" data-view="visualizers">visualizers</a>
+      </div>
       <div class="sidebar-section sidebar-palette">
         <div class="sidebar-label">Palette</div>
         <div class="sidebar-palette-controls">
@@ -65,6 +69,16 @@
         <p class="text-muted">configure SCAN_ROOT in .env and restart</p>
       </div>
     </main>
+  </div>
+
+  <!-- Visualizer meter bar -->
+  <div class="viz-meter-bar" id="viz-meter-bar">
+    <div class="viz-meter-cell" data-mode="bars"><canvas class="viz-meter-canvas"></canvas></div>
+    <div class="viz-meter-cell" data-mode="waveform"><canvas class="viz-meter-canvas"></canvas></div>
+    <div class="viz-meter-cell" data-mode="particles"><canvas class="viz-meter-canvas"></canvas></div>
+    <div class="viz-meter-cell" data-mode="dither"><canvas class="viz-meter-canvas"></canvas></div>
+    <div class="viz-meter-cell" data-mode="scope"><canvas class="viz-meter-canvas"></canvas></div>
+    <div class="viz-meter-cell" data-mode="spectrogram"><canvas class="viz-meter-canvas"></canvas></div>
   </div>
 
   <!-- Player bar -->
@@ -94,6 +108,7 @@
         <span class="player-time-sep">/</span>
         <span class="player-time" id="player-duration">0:00</span>
       </div>
+      <button class="player-btn player-btn-viz-fullscreen" id="btn-viz-fullscreen" title="Fullscreen visualizer (V)"></button>
       <div class="player-volume">
         <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1">
       </div>

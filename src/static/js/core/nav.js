@@ -14,7 +14,9 @@ import {
   renderFavorites,
   renderUnexportedProjects,
 } from '../views/index.js';
+import { renderVisualizers } from '../views/visualizers.js';
 import { togglePlay, playNext, playPrev } from '../ui/player.js';
+import { initAudioContext, resumeAudioContext, enterFullscreen, exitFullscreen } from '../ui/visualizer.js';
 
 const searchInput  = document.getElementById('search-input');
 const sidebarLinks = document.querySelectorAll('.sidebar-link');
@@ -54,6 +56,9 @@ sidebarLinks.forEach(link => {
       case 'favorites':
         renderFavorites();
         break;
+      case 'visualizers':
+        renderVisualizers();
+        break;
     }
   });
 });
@@ -89,4 +94,13 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'Space')      { e.preventDefault(); togglePlay(); }
   if (e.code === 'ArrowRight') { playNext(); }
   if (e.code === 'ArrowLeft')  { playPrev(); }
+  if (e.code === 'KeyV' && !e.ctrlKey && !e.metaKey) {
+    if (state.visualizerFullscreen) {
+      exitFullscreen();
+    } else {
+      initAudioContext();
+      resumeAudioContext();
+      enterFullscreen(state.visualizerMode || 'bars');
+    }
+  }
 });

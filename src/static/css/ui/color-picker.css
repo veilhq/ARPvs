@@ -6,6 +6,7 @@
   border: 1px solid var(--border-strong);
   width: 200px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  user-select: none;
 }
 
 .cp-header {
@@ -46,39 +47,30 @@
   gap: 10px;
 }
 
-/* --- Hue slider --- */
+/* --- Slider rows --- */
 
-.cp-hue-wrap,
-.cp-sat-wrap,
-.cp-lit-wrap {
+.cp-slider-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.cp-hue-track {
+.cp-track {
   flex: 1;
   height: 12px;
   border: 1px solid var(--border);
   position: relative;
   cursor: crosshair;
+  touch-action: none; /* prevent scroll/pan during drag */
+}
+
+.cp-hue-track {
   background: linear-gradient(to right,
     #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000
   );
 }
 
-.cp-sat-track,
-.cp-lit-track {
-  flex: 1;
-  height: 12px;
-  border: 1px solid var(--border);
-  position: relative;
-  cursor: crosshair;
-}
-
-.cp-hue-thumb,
-.cp-sat-thumb,
-.cp-lit-thumb {
+.cp-thumb {
   position: absolute;
   top: -2px;
   width: 4px;
@@ -89,8 +81,7 @@
   pointer-events: none;
 }
 
-.cp-sat-label,
-.cp-lit-label {
+.cp-track-label {
   font-family: var(--font-mono);
   font-size: 8px;
   color: var(--text-dim);
