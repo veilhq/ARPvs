@@ -34,6 +34,7 @@ export function renderAlbums(albums) {
       <div class="empty-state">
         <p>no albums yet</p>
         <p class="text-muted">create one to start collecting tracks</p>
+        <br/>
         <button class="edit-btn edit-btn-primary empty-state-cta" id="albums-create-empty">
           ${lucideIcon('plus', 13)} New album
         </button>
@@ -133,7 +134,13 @@ export function renderAlbums(albums) {
       const albumName = card.dataset.albumName;
       const cover = `/api/albums/${albumId}/cover`;
       const data = await fetchAlbumTracks(albumId);
-      renderAlbumExpanded(albumName, cover, data.tracks, { albumId });
+      
+      // Fetch full album data to get description
+      const albums = await fetchAlbums();
+      const album = albums.find(a => a.id === albumId);
+      const albumDescription = album?.description || null;
+      
+      renderAlbumExpanded(albumName, cover, data.tracks, { albumId, albumDescription });
     });
   });
 }
@@ -155,7 +162,7 @@ function bindAlbumsCreate(scope) {
 
 export function renderAlbumExpanded(albumName, coverSrc, tracks, opts = {}) {
   state.tracks = tracks;
-  const { albumId = null } = opts;
+  const { albumId = null, albumDescription = null } = opts;
   state.currentView = { type: 'album-expanded', params: { albumId, albumName } };
   const totalDuration = tracks.reduce((sum, t) => sum + (t.duration_seconds || 0), 0);
   const totalSize = tracks.reduce((sum, t) => sum + (t.file_size_bytes || 0), 0);
@@ -164,7 +171,7 @@ export function renderAlbumExpanded(albumName, coverSrc, tracks, opts = {}) {
   const rows = tracks.length ? renderGroupedTracksHtml(tracksWithIndex, { showTags: false }) : '';
 
   const editBtn = albumId != null
-    ? `<button class="icon-btn album-expanded-edit" id="album-expanded-edit" title="Edit album">${lucideIcon('pencil', 15)}</button>`
+    ? `<button class="icon-btn album-expanded-edit" id="album-expanded-edit" data-tooltip="Edit album">${lucideIcon('pencil', 15)}</button>`
     : '';
 
   const catalogRef = albumId != null ? String(albumId).padStart(3, '0') : '---';
@@ -173,6 +180,10 @@ export function renderAlbumExpanded(albumName, coverSrc, tracks, opts = {}) {
   const lastModified = newestTrack && newestTrack.modified_at
     ? new Date(newestTrack.modified_at * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : '—';
+
+  const descriptionHtml = albumDescription
+    ? `<div class="album-expanded-description">${escapeHtml(albumDescription)}</div>`
+    : '';
 
   const body = tracks.length
     ? `<div class="track-list">${rows}</div>`
@@ -187,7 +198,8 @@ export function renderAlbumExpanded(albumName, coverSrc, tracks, opts = {}) {
           <img src="${coverSrc}" alt="${albumName}" crossorigin="anonymous">
         </div>
         <div class="album-expanded-hero-info">
-          <div class="album-expanded-name">${albumName}</div>
+          <div class="album-expanded-name">${escapeHtml(albumName)}</div>
+          ${descriptionHtml}
           <div class="album-spec-sheet">
             <div class="spec-row"><span class="spec-label">ID</span><span class="spec-value">${catalogRef}</span></div>
             <div class="spec-row"><span class="spec-label">Tracks</span><span class="spec-value">${String(tracks.length).padStart(3, '0')}</span></div>
@@ -231,4 +243,14 @@ export function renderAlbumExpanded(albumName, coverSrc, tracks, opts = {}) {
   bindDitherCanvases(content);
   bindGroupHeaders();
   bindTrackRows();
+}
+
+// --- Utils ---
+
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

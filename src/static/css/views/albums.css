@@ -9,7 +9,6 @@
   grid-template-columns: repeat(auto-fill, minmax(280px, 360px));
   gap: 0;
   margin-left: -24px;
-  border-top: 1px solid var(--border);
 }
 
 .album-card {
@@ -385,6 +384,16 @@
   letter-spacing: -0.01em;
   font-family: var(--font-display);
   line-height: 0.95;
+}
+
+.album-expanded-description {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-family: var(--font-body);
+  line-height: 1.5;
+  max-width: 600px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 .album-expanded-edit {

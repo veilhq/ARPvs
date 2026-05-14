@@ -31,13 +31,21 @@ def start_desktop(config):
     url = f"http://{config['host']}:{config['port']}"
     window_cfg = config.get("window", {})
 
-    webview.create_window(
+    window = webview.create_window(
         title=window_cfg.get("title", "ARPvs"),
         url=url,
         width=window_cfg.get("width", 1200),
         height=window_cfg.get("height", 800),
         min_size=(window_cfg.get("min_width", 800), window_cfg.get("min_height", 500)),
     )
+    
+    # Expose toggle_fullscreen function to the webview
+    def toggle_fullscreen():
+        """Toggle fullscreen mode."""
+        window.toggle_fullscreen()
+    
+    window.expose(toggle_fullscreen)
+    
     webview.start()
 
 

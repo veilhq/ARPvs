@@ -179,8 +179,8 @@ export function enterFullscreen(mode = 'bars') {
         <span class="visualizer-track-name">${state.currentTrack?.display_name || state.currentTrack?.filename || '--'}</span>
       </div>
       <div class="visualizer-fullscreen-actions">
-        <button class="visualizer-btn visualizer-btn-mode" title="Cycle mode">MODE</button>
-        <button class="visualizer-btn visualizer-btn-close" title="Exit fullscreen (Esc)">EXIT</button>
+        <button class="visualizer-btn visualizer-btn-mode" data-tooltip="Cycle mode">MODE</button>
+        <button class="visualizer-btn visualizer-btn-close" data-tooltip="Exit fullscreen (Esc)">EXIT</button>
       </div>
     </div>
   `;

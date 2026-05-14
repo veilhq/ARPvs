@@ -12,8 +12,7 @@ build/
 .env
 
 # Data
-data/library.db
-data/cover_art/
+data/*
 
 # IDE
 .vscode/

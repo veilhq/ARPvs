@@ -29,6 +29,7 @@ async def list_albums():
         rows = conn.execute("""
             SELECT a.id,
                    a.name,
+                   a.description,
                    a.cover_path,
                    a.created_at,
                    a.updated_at,
@@ -56,18 +57,21 @@ async def create_album(payload: dict):
 
     Accepted fields:
       - name (str, required): the album's display name.
+      - description (str, optional): album description.
     """
     name = (payload.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="Album name is required")
 
+    description = (payload.get("description") or "").strip() or None
+
     conn = get_connection()
     try:
-        cur = conn.execute("INSERT INTO albums (name) VALUES (?)", (name,))
+        cur = conn.execute("INSERT INTO albums (name, description) VALUES (?, ?)", (name, description))
         album_id = cur.lastrowid
         conn.commit()
         row = conn.execute("""
-            SELECT id, name, cover_path, created_at, updated_at
+            SELECT id, name, description, cover_path, created_at, updated_at
             FROM albums WHERE id = ?
         """, (album_id,)).fetchone()
     finally:
@@ -86,6 +90,7 @@ async def update_album(album_id: int, payload: dict):
 
     Accepted fields:
       - name (str): the album's display name. Empty/whitespace is rejected.
+      - description (str | null): album description. null/empty clears it.
     """
     conn = get_connection()
     try:
@@ -101,8 +106,15 @@ async def update_album(album_id: int, payload: dict):
                 "UPDATE albums SET name = ?, updated_at = datetime('now') WHERE id = ?",
                 (name, album_id),
             )
-            conn.commit()
 
+        if "description" in payload:
+            description = (payload.get("description") or "").strip() or None
+            conn.execute(
+                "UPDATE albums SET description = ?, updated_at = datetime('now') WHERE id = ?",
+                (description, album_id),
+            )
+
+        conn.commit()
         return {"ok": True}
     finally:
         conn.close()

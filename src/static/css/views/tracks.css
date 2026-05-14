@@ -100,6 +100,10 @@
   margin-bottom: 6px;
 }
 
+.spec-row-muted {
+  opacity: 0.6;
+}
+
 .spec-action {
   grid-column: 1 / -1;
   padding-top: 4px;
@@ -145,6 +149,51 @@
   height: 10px;
 }
 
+.filter-toggle {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  background: none;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 4px 0;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.1s;
+  letter-spacing: 0.04em;
+  position: relative;
+}
+
+.filter-toggle:hover {
+  color: var(--text-bright);
+}
+
+.filter-toggle.filter-active {
+  color: var(--accent);
+}
+
+.filter-toggle::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  transition: background-color 0.1s;
+}
+
+.filter-toggle.filter-active::before {
+  background-color: var(--accent);
+}
+
+.filter-toggle-label {
+  flex: 1;
+}
+
 .library-tracks {
   padding: 0 0 0 24px;
   min-width: 0;
@@ -164,7 +213,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 24px 6px 24px;
+  padding: 8px 24px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 0;
   margin-left: -24px;
@@ -323,6 +372,89 @@
 }
 
 /* Version groups */
+
+.track-multiversion-row {
+  display: grid;
+  grid-template-columns: 12px 40px 40px 1fr auto auto auto auto 24px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 24px 8px 24px;
+  margin-left: -24px;
+  margin-right: -24px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-bottom: 1px solid var(--border);
+}
+
+.track-multiversion-row:hover {
+  background: var(--bg-surface);
+}
+
+.track-multiversion-row.track-active {
+  background: var(--bg-surface);
+}
+
+.track-multiversion-row.track-active .track-indicator {
+  color: var(--accent);
+}
+
+.track-version-selector {
+  position: relative;
+  cursor: pointer;
+}
+
+.track-version-selected {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.track-multiversion-row:hover .track-version-selected {
+  color: var(--text-muted);
+  border-color: var(--border-strong);
+}
+
+.version-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-top: none;
+  z-index: 100;
+  min-width: 120px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-top: -1px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.version-option {
+  display: block;
+  padding: 6px 10px;
+  font-size: 9px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.version-option:hover {
+  background: var(--bg-elevated);
+  color: var(--accent);
+}
 
 .track-group-header {
   display: grid;

@@ -56,7 +56,7 @@ export function renderVisualizers() {
       <div class="spec-row">
         <span class="spec-label">Ambient</span>
         <span class="spec-value">
-          <button class="visualizer-ambient-toggle${state.ambientMode ? ' visualizer-ambient-toggle-active' : ''}" id="ambient-toggle" title="Ambient mode — slower, more meditative response">
+          <button class="visualizer-ambient-toggle${state.ambientMode ? ' visualizer-ambient-toggle-active' : ''}" id="ambient-toggle" data-tooltip="Ambient mode — slower, more meditative response">
             ${state.ambientMode ? 'ON' : 'OFF'}
           </button>
         </span>
@@ -64,10 +64,10 @@ export function renderVisualizers() {
       <div class="spec-row">
         <span class="spec-label">Palette</span>
         <span class="spec-value visualizer-palette-preview">
-          <span class="visualizer-palette-dot" style="background: var(--accent)" title="accent"></span>
-          <span class="visualizer-palette-dot" style="background: var(--warm)" title="warm"></span>
-          <span class="visualizer-palette-dot" style="background: var(--cool)" title="cool"></span>
-          <span class="visualizer-palette-dot" style="background: var(--comp)" title="comp"></span>
+          <span class="visualizer-palette-dot" style="background: var(--accent)" data-tooltip="Accent"></span>
+          <span class="visualizer-palette-dot" style="background: var(--warm)" data-tooltip="Warm"></span>
+          <span class="visualizer-palette-dot" style="background: var(--cool)" data-tooltip="Cool"></span>
+          <span class="visualizer-palette-dot" style="background: var(--comp)" data-tooltip="Comp"></span>
         </span>
       </div>
     </div>`;
@@ -87,10 +87,10 @@ export function renderVisualizers() {
           </div>
           <span class="visualizer-card-desc">${info.description}</span>
           <div class="visualizer-card-actions">
-            <button class="visualizer-card-btn visualizer-card-btn-select" data-mode="${mode}" title="Set as player visualizer">
+            <button class="visualizer-card-btn visualizer-card-btn-select" data-mode="${mode}" data-tooltip="Set as player visualizer">
               ${isActive ? 'SELECTED' : 'SELECT'}
             </button>
-            <button class="visualizer-card-btn visualizer-card-btn-fullscreen" data-mode="${mode}" title="Launch fullscreen">
+            <button class="visualizer-card-btn visualizer-card-btn-fullscreen" data-mode="${mode}" data-tooltip="Launch fullscreen">
               FULLSCREEN
             </button>
           </div>
@@ -106,10 +106,14 @@ export function renderVisualizers() {
 
   content.innerHTML = `
     ${header}
-    ${specSheet}
-    ${noAudioHint}
-    <div class="visualizer-grid">
-      ${cards}
+    <div class="library-body">
+      ${specSheet}
+      <div class="library-visualizers">
+        ${noAudioHint}
+        <div class="visualizer-grid">
+          ${cards}
+        </div>
+      </div>
     </div>`;
 
   // Initialize audio context on interaction

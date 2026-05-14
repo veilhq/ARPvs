@@ -16,6 +16,7 @@ import { initializeIcons, createIcon } from './core/icons.js';
 import { onTrackSaved } from './modals/edit-track.js';
 import { onAlbumSaved } from './modals/edit-album.js';
 import { initAudioContext, resumeAudioContext, registerCanvas, enterFullscreen, VISUALIZER_MODES } from './ui/visualizer.js';
+import { initTooltips, refreshTooltips } from './ui/tooltip.js';
 
 // --- App constants ---
 const SPLASH_DURATION_MS = 3000;
@@ -25,9 +26,13 @@ const SPLASH_INIT_DELAY_MS = 100;
 initializeThemeMode();
 initializeTheme();
 setupScrollShadow();
+setupColorPicker();  // Set up color picker early so it's ready before DOM renders
 
 // Initialize icons
 initializeIcons();
+
+// Initialize tooltips
+initTooltips();
 
 // Initialize splash screen
 setTimeout(() => initSplash(SPLASH_DURATION_MS), SPLASH_INIT_DELAY_MS);
@@ -44,7 +49,7 @@ setOnTrackChange(() => {
 
   // Views that don't show a track list — don't re-render at all
   if (cv.type === 'albums' || cv.type === 'projects' || cv.type === 'unexported' ||
-      cv.type === 'favorites' || cv.type === 'visualizers') {
+      cv.type === 'visualizers') {
     return;
   }
 
@@ -81,12 +86,15 @@ const btnLoop = document.getElementById('btn-loop');
 
 function updateShuffleButton() {
   btnShuffle.classList.toggle('active', state.shuffle);
+  btnShuffle.setAttribute('data-tooltip', state.shuffle ? 'Shuffle: on' : 'Shuffle: off');
 }
 
 function updateLoopButton() {
   btnLoop.classList.toggle('active', state.loopMode !== 'off');
   const iconName = state.loopMode === 'one' ? 'loop-one' : 'loop';
   btnLoop.innerHTML = createIcon(iconName, 18);
+  const loopLabel = state.loopMode === 'one' ? 'Loop: one' : state.loopMode === 'all' ? 'Loop: all' : 'Loop: off';
+  btnLoop.setAttribute('data-tooltip', loopLabel);
 }
 
 btnShuffle.addEventListener('click', () => {
@@ -143,6 +151,50 @@ reloadBtn.addEventListener('click', () => {
   });
 })();
 
+// Fullscreen toggle
+(function initFullscreenToggle() {
+  var btn = document.getElementById('fullscreen-btn');
+  if (!btn) return;
+
+  function toggleFullscreen() {
+    // Check if we're in pywebview
+    if (window.pywebview && window.pywebview.api) {
+      window.pywebview.api.toggle_fullscreen();
+    } else {
+      // Fallback for browser/dev mode
+      if (!document.fullscreenElement) {
+        var elem = document.body;
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen().catch(err => {
+            console.warn('Fullscreen request failed:', err);
+          });
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+  }
+
+  btn.addEventListener('click', toggleFullscreen);
+
+  // Keyboard shortcut: "f" toggles fullscreen (unless typing in an input)
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      var tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+      e.preventDefault();
+      toggleFullscreen();
+    }
+  });
+
+  // Update button state when fullscreen changes (for browser mode)
+  document.addEventListener('fullscreenchange', () => {
+    btn.classList.toggle('active', !!document.fullscreenElement);
+  });
+})();
+
 async function init() {
   const [tracks, trackTags, librarySummary] = await Promise.all([
     fetchTracks(),
@@ -152,11 +204,12 @@ async function init() {
 
   state.trackTags = trackTags;
   state.librarySummary = librarySummary;
+  state.allTracks = tracks;  // Store original unfiltered tracks
   state.tracks    = sortTracks(tracks);
   renderTrackList(state.tracks);
+  refreshTooltips();
   
-  // Setup color picker and palette mode after DOM is ready
-  setupColorPicker();
+  // Setup palette mode and theme toggle after DOM is ready
   setupPaletteMode();
   setupThemeToggle();
 

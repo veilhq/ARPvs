@@ -7,12 +7,12 @@ import { fetchTracks, fetchAlbums, fetchAlbumTracks } from '../core/api.js';
 import { setPlayTrack } from './shared.js';
 import { sortTracks, renderTrackList } from './tracks.js';
 import { renderAlbums, renderAlbumExpanded, bumpCoverCache } from './albums.js';
-import { renderProjects, renderFavorites, renderUnexportedProjects } from './projects.js';
+import { renderProjects, renderUnexportedProjects } from './projects.js';
 
 export { setPlayTrack } from './shared.js';
 export { sortTracks, renderTrackList } from './tracks.js';
 export { renderAlbums, renderAlbumExpanded, bumpCoverCache } from './albums.js';
-export { renderProjects, renderFavorites, renderUnexportedProjects } from './projects.js';
+export { renderProjects, renderUnexportedProjects } from './projects.js';
 
 /**
  * Re-render whichever view is currently active, fetching fresh data.
@@ -37,10 +37,12 @@ export async function refreshCurrentView() {
       if (q) {
         const { searchTracks } = await import('../api.js');
         const results = await searchTracks(q);
+        state.allTracks = results;
         state.tracks = results;
         renderTrackList(results);
       } else {
         const all = await fetchTracks();
+        state.allTracks = all;
         state.tracks = sortTracks(all);
         renderTrackList(state.tracks);
       }
@@ -56,9 +58,6 @@ export async function refreshCurrentView() {
       renderUnexportedProjects(await fetchUnexportedProjects());
       return;
     }
-    case 'favorites':
-      renderFavorites();
-      return;
     case 'visualizers': {
       const { renderVisualizers } = await import('./visualizers.js');
       renderVisualizers();
@@ -67,6 +66,7 @@ export async function refreshCurrentView() {
     case 'all':
     default: {
       const tracks = await fetchTracks();
+      state.allTracks = tracks;
       state.tracks = sortTracks(tracks);
       renderTrackList(state.tracks);
     }

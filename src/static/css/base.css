@@ -18,10 +18,10 @@
   --text: #ffffff;
   --text-muted: #ffffff;
   --text-dim: #666666;
-  --accent: #ff0000;
-  --accent-dim: rgba(255, 0, 0, 0.04);
-  --accent-glow: rgba(255, 0, 0, 0.06);
-  --accent-border: rgba(255, 0, 0, 0.25);
+  --accent: #0000ff;
+  --accent-dim: rgba(0, 0, 255, 0.04);
+  --accent-glow: rgba(0, 0, 255, 0.06);
+  --accent-border: rgba(0, 0, 255, 0.25);
   --warm: #ffb000;
   --cool: #00cccc;
   --comp: #ff3333;

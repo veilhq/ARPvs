@@ -9,6 +9,7 @@
 @import url('./core/layout.css');
 
 /* UI components */
+@import url('./ui/tooltip.css');
 @import url('./ui/player.css');
 @import url('./ui/splash.css');
 @import url('./ui/visualizer.css');

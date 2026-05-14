@@ -12,7 +12,7 @@
 
 const STORAGE_KEY = 'arpvs-accent-color';
 const PALETTE_MODE_KEY = 'arpvs-palette-mode';
-const DEFAULT_ACCENT = '#ff0000';
+const DEFAULT_ACCENT = '#0000ff';
 
 // --- Color conversion utilities ---
 
@@ -114,8 +114,8 @@ function buildPalette(hex, mode) {
 
 // --- State ---
 
-let paletteMode = localStorage.getItem(PALETTE_MODE_KEY) || 'split';
-if (!PALETTE_MODES.includes(paletteMode)) paletteMode = 'split';
+let paletteMode = localStorage.getItem(PALETTE_MODE_KEY) || 'analogous';
+if (!PALETTE_MODES.includes(paletteMode)) paletteMode = 'analogous';
 
 // --- Apply accent + palette to CSS custom properties ---
 
@@ -155,7 +155,7 @@ function updatePalettePreview(palette) {
   swatches.forEach((sw, i) => {
     if (i < colors.length) {
       sw.style.background = colors[i];
-      sw.setAttribute('title', `${labels[i]}: ${colors[i]}`);
+      sw.setAttribute('data-tooltip', `${labels[i]}: ${colors[i]}`);
     }
   });
 }
@@ -179,6 +179,10 @@ export function initializeTheme() {
   if (picker) picker.value = savedColor;
 
   updateModeButton();
+  
+  // Migration: force analogous as new default
+  localStorage.setItem(PALETTE_MODE_KEY, 'analogous');
+  paletteMode = 'analogous';
 }
 
 export function setupColorPicker() {
@@ -187,9 +191,12 @@ export function setupColorPicker() {
 
   picker.value = getAccentColor();
 
-  picker.addEventListener('input', (e) => {
+  const handleColorChange = (e) => {
     setAccentColor(e.target.value);
-  });
+  };
+
+  picker.addEventListener('input', handleColorChange);
+  picker.addEventListener('change', handleColorChange);
 }
 
 // --- Palette mode toggle ---
@@ -199,7 +206,7 @@ function updateModeButton() {
   if (!btn) return;
   btn.textContent = PALETTE_LABELS[paletteMode] || 'SPL';
   const nextIdx = (PALETTE_MODES.indexOf(paletteMode) + 1) % PALETTE_MODES.length;
-  btn.title = `${PALETTE_TITLES[paletteMode]} — click for ${PALETTE_TITLES[PALETTE_MODES[nextIdx]].toLowerCase()}`;
+  btn.setAttribute('data-tooltip', `${PALETTE_TITLES[paletteMode]} — click for ${PALETTE_TITLES[PALETTE_MODES[nextIdx]].toLowerCase()}`);
 }
 
 export function setupPaletteMode() {
@@ -214,7 +221,10 @@ export function setupPaletteMode() {
     localStorage.setItem(PALETTE_MODE_KEY, paletteMode);
     updateModeButton();
 
-    applyAccent(getAccentColor());
+    // Get the current accent color from the picker, not from storage
+    const picker = document.getElementById('accent-color');
+    const currentColor = picker ? picker.value : getAccentColor();
+    applyAccent(currentColor);
   });
 }
 
@@ -270,7 +280,9 @@ function updateThemeToggleIcon() {
   // Sun icon for dark mode (click to go light), moon for light mode (click to go dark)
   if (isDark) {
     btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+    btn.setAttribute('data-tooltip', 'Light mode');
   } else {
     btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+    btn.setAttribute('data-tooltip', 'Dark mode');
   }
 }

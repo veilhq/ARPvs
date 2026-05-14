@@ -96,6 +96,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "folder_name" not in project_cols:
         conn.execute("ALTER TABLE projects ADD COLUMN folder_name TEXT")
 
+    # Add description column to albums if missing
+    album_cols = {row["name"] for row in conn.execute("PRAGMA table_info(albums)")}
+    if "description" not in album_cols:
+        conn.execute("ALTER TABLE albums ADD COLUMN description TEXT")
+
     # Drop legacy collections tables if they exist
     conn.execute("DROP TABLE IF EXISTS collection_tracks")
     conn.execute("DROP TABLE IF EXISTS collections")
@@ -109,6 +114,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS albums (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
+    description TEXT,
     cover_path TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))

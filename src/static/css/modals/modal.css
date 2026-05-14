@@ -110,6 +110,24 @@
   border-color: var(--accent);
 }
 
+.edit-field textarea {
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  color: var(--text-bright);
+  font-family: var(--font-heading);
+  font-size: 13px;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+  resize: vertical;
+  min-height: 80px;
+  max-height: 200px;
+}
+
+.edit-field textarea:focus {
+  border-color: var(--accent);
+}
+
 .edit-field-hint {
   font-family: var(--font-mono);
   font-size: 9px;

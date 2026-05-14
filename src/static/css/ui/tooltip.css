@@ -1,0 +1,42 @@
+/* Tooltip — Archival, monospace, theme-aware */
+
+.tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+
+  /* Typography */
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+
+  /* Box */
+  padding: 4px 7px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+
+  /* Accent left edge */
+  border-left: 2px solid var(--accent);
+
+  /* Visibility */
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 0.1s var(--ease), transform 0.1s var(--ease);
+}
+
+.tooltip.tooltip-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Light mode — stronger contrast */
+[data-theme="light"] .tooltip {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-color: var(--border-strong);
+  border-left-color: var(--accent);
+}

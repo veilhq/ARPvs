@@ -8,10 +8,53 @@ import { lucideIcon, renderGroupedTracksHtml, bindGroupHeaders, bindTrackRows } 
 
 const content = document.getElementById('content');
 
+// --- Filter ---
+
+export function getLatestVersionsOnly(tracks) {
+  const trackMap = new Map();
+  
+  // Extract version number from name (v followed by one or more digits at the end)
+  function getVersionInfo(name) {
+    const match = name.match(/\s*v(\d+)\s*$/i);
+    const baseName = name.replace(/\s*v\d+\s*$/i, '');
+    const version = match ? parseInt(match[1], 10) : 0;
+    return { baseName, version };
+  }
+  
+  // Group tracks by base name (without version) and project
+  tracks.forEach(track => {
+    const name = track.display_name || track.filename;
+    const { baseName, version } = getVersionInfo(name);
+    const projectId = track.project_id;
+    const key = `${projectId}:${baseName}`;
+    
+    if (!trackMap.has(key)) {
+      trackMap.set(key, { track, version });
+    } else {
+      // Keep the one with the highest version number
+      const existing = trackMap.get(key);
+      if (version > existing.version) {
+        trackMap.set(key, { track, version });
+      }
+    }
+  });
+  
+  const result = Array.from(trackMap.values()).map(item => item.track);
+  console.log(`Filter: ${tracks.length} tracks → ${result.length} latest versions`);
+  return result;
+}
+
 // --- Sort ---
 
 export function sortTracks(tracks) {
-  const sorted = [...tracks];
+  let filtered = tracks;
+  
+  // Apply latest version filter if enabled
+  if (state.showLatestOnly) {
+    filtered = getLatestVersionsOnly(filtered);
+  }
+  
+  const sorted = [...filtered];
   sorted.sort((a, b) => {
     let cmp = 0;
     switch (state.sortBy) {
@@ -40,7 +83,8 @@ function handleSort(field) {
     state.sortBy = field;
     state.sortAsc = true;
   }
-  state.tracks = sortTracks(state.tracks);
+  // Re-sort from the original unfiltered tracks
+  state.tracks = sortTracks(state.allTracks);
   renderTrackList(state.tracks);
 }
 
@@ -111,6 +155,11 @@ export function renderTrackList(tracks) {
   const unexportedCount = state.librarySummary?.total_unexported || 0;
   const scanDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
+  // Calculate how many tracks would be hidden by the filter
+  const allTracksCount = state.allTracks.length;
+  const filteredCount = state.showLatestOnly ? getLatestVersionsOnly(state.allTracks).length : allTracksCount;
+  const hiddenCount = allTracksCount - filteredCount;
+
   const heroBlock = `
     <div class="library-hero">
       <div class="library-hero-meta">
@@ -145,6 +194,7 @@ export function renderTrackList(tracks) {
   const specSheet = `
     <div class="library-spec-sheet">
       <div class="spec-row"><span class="spec-label">Tracks</span><span class="spec-value">${String(tracks.length).padStart(3, '0')}</span></div>
+      ${hiddenCount > 0 ? `<div class="spec-row spec-row-muted"><span class="spec-label">Hidden</span><span class="spec-value">${String(hiddenCount).padStart(3, '0')}</span></div>` : ''}
       <div class="spec-row"><span class="spec-label">Projects</span><span class="spec-value">${String(projectSet.size).padStart(3, '0')}</span></div>
       <div class="spec-row"><span class="spec-label">Folders</span><span class="spec-value">${String(folderSet.size).padStart(3, '0')}</span></div>
       <div class="spec-row"><span class="spec-label">Unexported</span><span class="spec-value">${String(unexportedCount).padStart(3, '0')}</span></div>
@@ -154,6 +204,11 @@ export function renderTrackList(tracks) {
       <div class="spec-divider"></div>
       <div class="spec-section-label">Sort</div>
       <div class="sort-options">${sortOptions}</div>
+      <div class="spec-divider"></div>
+      <div class="spec-section-label">Filter</div>
+      <button class="filter-toggle${state.showLatestOnly ? ' filter-active' : ''}" id="latest-only-toggle">
+        <span class="filter-toggle-label">Latest versions only</span>
+      </button>
     </div>`;
 
   let trackListHtml;
@@ -182,6 +237,20 @@ export function renderTrackList(tracks) {
       handleSort(btn.dataset.sort);
     });
   });
+
+  // Latest versions only toggle
+  const latestOnlyToggle = content.querySelector('#latest-only-toggle');
+  if (latestOnlyToggle) {
+    latestOnlyToggle.addEventListener('click', () => {
+      console.log('Toggle clicked. Before:', state.showLatestOnly, 'allTracks:', state.allTracks.length);
+      state.showLatestOnly = !state.showLatestOnly;
+      console.log('After:', state.showLatestOnly);
+      // Re-sort from the original unfiltered tracks
+      state.tracks = sortTracks(state.allTracks);
+      console.log('Filtered tracks:', state.tracks.length);
+      renderTrackList(state.tracks);
+    });
+  }
 
   bindGroupHeaders();
   bindTrackRows();

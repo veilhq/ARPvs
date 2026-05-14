@@ -11,7 +11,6 @@ import {
   renderTrackList,
   renderAlbums,
   renderProjects,
-  renderFavorites,
   renderUnexportedProjects,
 } from '../views/index.js';
 import { renderVisualizers } from '../views/visualizers.js';
@@ -53,9 +52,6 @@ sidebarLinks.forEach(link => {
         renderUnexportedProjects(projects);
         break;
       }
-      case 'favorites':
-        renderFavorites();
-        break;
       case 'visualizers':
         renderVisualizers();
         break;

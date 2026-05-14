@@ -39,10 +39,35 @@ export function setOnTrackChange(cb) {
 
 // --- Playback ---
 
-export function playTrack(index) {
-  if (index < 0 || index >= state.tracks.length) return;
+export function playTrack(indexOrId) {
+  // Support both index (for backward compatibility) and track ID
+  let track;
+  let index;
+  
+  if (typeof indexOrId === 'number') {
+    // Check if it's an index (0-based, within bounds)
+    if (indexOrId >= 0 && indexOrId < state.tracks.length && Number.isInteger(indexOrId)) {
+      // Could be either index or ID - check if it matches a track ID
+      const trackById = state.tracks.find(t => t.id === indexOrId);
+      if (trackById) {
+        // It's a track ID
+        track = trackById;
+        index = state.tracks.indexOf(track);
+      } else {
+        // It's an index
+        track = state.tracks[indexOrId];
+        index = indexOrId;
+      }
+    } else {
+      // Out of bounds for index, try as ID
+      track = state.tracks.find(t => t.id === indexOrId);
+      if (!track) return;
+      index = state.tracks.indexOf(track);
+    }
+  } else {
+    return;
+  }
 
-  const track = state.tracks[index];
   state.currentTrack = track;
   state.currentIndex = index;
 
@@ -70,6 +95,7 @@ export function playTrack(index) {
   playerTitle.textContent = track.display_name || track.filename;
   playerSub.textContent   = [track.project_name, track.folder_name].filter(Boolean).join(' • ');
   btnPlay.innerHTML = icon('pause', 18);
+  btnPlay.setAttribute('data-tooltip', 'Pause');
 
   // Seed the dither art by project id so sibling versions share a pattern.
   const artSeed = track.project_id || track.id || 1;
@@ -86,6 +112,7 @@ export function togglePlay() {
     audio.pause();
     state.isPlaying = false;
     btnPlay.innerHTML = icon('play', 18);
+    btnPlay.setAttribute('data-tooltip', 'Play');
   } else {
     const playPromise = audio.play();
     if (playPromise !== undefined) {
@@ -93,6 +120,7 @@ export function togglePlay() {
         .then(() => {
           state.isPlaying = true;
           btnPlay.innerHTML = icon('pause', 18);
+          btnPlay.setAttribute('data-tooltip', 'Pause');
         })
         .catch(err => {
           console.error('Playback failed:', err);
@@ -101,6 +129,7 @@ export function togglePlay() {
     } else {
       state.isPlaying = true;
       btnPlay.innerHTML = icon('pause', 18);
+      btnPlay.setAttribute('data-tooltip', 'Pause');
     }
   }
 }

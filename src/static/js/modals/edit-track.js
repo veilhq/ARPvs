@@ -77,8 +77,8 @@ function buildModal({ track, currentName, defaultName, hasOverride, siblingCount
   overlay.className = 'edit-modal-overlay';
 
   const scopeLabel = albumScope != null
-    ? `<span class="edit-scope-tag" title="This rename only applies inside this album">album scope</span>`
-    : `<span class="edit-scope-tag edit-scope-global" title="This rename applies everywhere">global</span>`;
+    ? `<span class="edit-scope-tag" data-tooltip="This rename only applies inside this album">album scope</span>`
+    : `<span class="edit-scope-tag edit-scope-global" data-tooltip="This rename applies everywhere">global</span>`;
 
   const siblingLabel = albumScope != null
     ? `Also rename ${siblingCount} other version${siblingCount === 1 ? '' : 's'} in this album`

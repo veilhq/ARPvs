@@ -186,6 +186,11 @@ function buildEditModal(s) {
             </div>
 
             <div class="edit-field">
+              <label for="album-edit-description">Description</label>
+              <textarea id="album-edit-description" placeholder="Add a description..." autocomplete="off">${escapeHtml(s.album.description || '')}</textarea>
+            </div>
+
+            <div class="edit-field">
               <div class="track-picker-header">
                 <label>Tracks</label>
                 <span class="track-picker-mode" id="track-picker-count">${memberCountLabel(s)}</span>
@@ -376,8 +381,18 @@ function wireEditModal(overlay, s) {
       nameInput.focus();
       return;
     }
+    const newDescription = overlay.querySelector('#album-edit-description').value.trim() || null;
+    
+    const patch = {};
     if (newName !== s.album.name) {
-      await updateAlbum(s.album.id, { name: newName });
+      patch.name = newName;
+    }
+    if (newDescription !== (s.album.description || null)) {
+      patch.description = newDescription;
+    }
+    
+    if (Object.keys(patch).length > 0) {
+      await updateAlbum(s.album.id, patch);
     }
 
     if (tracksDirty(s)) {

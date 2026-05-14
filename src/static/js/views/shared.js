@@ -87,7 +87,8 @@ export function trackRowHtml(t, i, { showTags = true, displayIdx = null } = {}) 
     indicator = `<span class="track-idx">${String(idx).padStart(3, '0')}</span>`;
   }
 
-  const { name: trackName } = parseVersion(t.display_name || t.filename);
+  const { name: trackName, version } = parseVersion(t.display_name || t.filename);
+  const versionText = version || 'version 1';
   const dateStr = t.modified_at ? new Date(t.modified_at * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
   const fileSizeStr = t.file_size_bytes ? formatFileSize(t.file_size_bytes) : '';
 
@@ -101,106 +102,25 @@ export function trackRowHtml(t, i, { showTags = true, displayIdx = null } = {}) 
         ${subText ? `<span class="track-sub">${subText}</span>` : ''}
       </div>
       <div class="track-version-badge">
-        <span class="track-versions-tag">1 ver</span>
+        <span class="track-version-selected">${versionText}</span>
       </div>
       <span class="track-tags">${tagHtml}</span>
-      <span class="track-sparkline-wrap" title="Waveform">${sparklineSvg(t)}</span>
+      <span class="track-sparkline-wrap" data-tooltip="Waveform">${sparklineSvg(t)}</span>
       <span class="track-metadata">
-        <span class="track-format" title="Format">WAV</span>
-        <span class="track-filesize" title="File size">${fileSizeStr}</span>
-        <span class="track-duration" title="Duration">${formatTime(t.duration_seconds)}</span>
-        ${dateStr ? `<span class="track-date" title="Modified">${dateStr}</span>` : ''}
+        <span class="track-format" data-tooltip="Format">WAV</span>
+        <span class="track-filesize" data-tooltip="File size">${fileSizeStr}</span>
+        <span class="track-duration" data-tooltip="Duration">${formatTime(t.duration_seconds)}</span>
+        ${dateStr ? `<span class="track-date" data-tooltip="Modified">${dateStr}</span>` : ''}
       </span>
-      <button class="track-edit-btn" data-track-id="${t.id}" title="Edit name">${lucideIcon('pencil', 13)}</button>
+      <button class="track-edit-btn" data-track-id="${t.id}" data-tooltip="Edit name">${lucideIcon('pencil', 13)}</button>
     </div>`;
 }
 
 export function renderGroupedTracksHtml(tracks, { showTags = true } = {}) {
-  const groups = groupTracksByVersion(tracks);
-  let runningIdx = 0;
-
-  return groups.map((group, groupIdx) => {
-    if (!group.hasVersions) {
-      const t = group.tracks[0];
-      runningIdx++;
-      return trackRowHtml(t, t.originalIndex, { showTags, displayIdx: runningIdx });
-    }
-
-    runningIdx++;
-    const groupNum = runningIdx;
-    const groupId = `version-group-${groupIdx}`;
-    const firstTrack = group.tracks[0];
-    const { name: trackName } = parseVersion(firstTrack.display_name || firstTrack.filename);
-
-    const subParts = [];
-    if (firstTrack.project_name) subParts.push(firstTrack.project_name);
-    if (firstTrack.folder_name)  subParts.push(firstTrack.folder_name);
-    const subText = subParts.join('<span class="track-sub-sep">/</span>');
-    const dateStr = firstTrack.modified_at ? new Date(firstTrack.modified_at * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
-
-    const isGroupActive = group.tracks.some(t => state.currentIndex === t.originalIndex);
-    const groupIndicator = isGroupActive
-      ? `<span class="track-indicator-icon">${lucideIcon('play', 14)}</span>`
-      : `<span class="track-idx">${String(groupNum).padStart(3, '0')}</span>`;
-
-    const groupHeader = `
-      <div class="track-group-header${isGroupActive ? ' track-active' : ''}" data-group-id="${groupId}" data-track-id="${firstTrack.id}">
-        <span class="track-type-indicator track-group-toggle-icon">${lucideIcon('chevron-right', 10)}</span>
-        <span class="track-indicator">${groupIndicator}</span>
-        <div class="track-thumb">${thumbHtml(firstTrack)}</div>
-        <div class="track-info">
-          <span class="track-name">${trackName}</span>
-          ${subText ? `<span class="track-sub">${subText}</span>` : ''}
-        </div>
-        <div class="track-version-badge">
-          <span class="track-versions-tag">${group.tracks.length} ver</span>
-        </div>
-        <span class="track-tags"></span>
-        <span class="track-sparkline-wrap" title="Waveform">${sparklineSvg(firstTrack)}</span>
-        <span class="track-metadata">
-          <span class="track-format" title="Format">WAV</span>
-          <span class="track-filesize" title="File size">${firstTrack.file_size_bytes ? formatFileSize(firstTrack.file_size_bytes) : ''}</span>
-          <span class="track-duration" title="Duration">${formatTime(firstTrack.duration_seconds)}</span>
-          ${dateStr ? `<span class="track-date" title="Modified">${dateStr}</span>` : ''}
-        </span>
-        <button class="track-edit-btn" data-track-id="${firstTrack.id}" title="Edit name">${lucideIcon('pencil', 13)}</button>
-      </div>`;
-
-    const versionRows = group.tracks.map((t, idx) => {
-      const { version } = parseVersion(t.display_name || t.filename);
-      const isActive = state.currentIndex === t.originalIndex;
-      const versionIdx = `${String(groupNum).padStart(3, '0')}.${idx + 1}`;
-      let indicator;
-      if (isActive)          indicator = `<span class="track-indicator-icon">${lucideIcon('play', 14)}</span>`;
-      else if (t.is_changed) indicator = `<span class="track-indicator-icon track-indicator-changed">${lucideIcon('edit', 14)}</span>`;
-      else                   indicator = `<span class="track-idx">${versionIdx}</span>`;
-
-      const versionDateStr = t.modified_at ? new Date(t.modified_at * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
-      const versionFileSize = t.file_size_bytes ? formatFileSize(t.file_size_bytes) : '';
-
-      return `
-        <div class="track-row track-version-row${isActive ? ' track-active' : ''}" data-index="${t.originalIndex}" data-track-id="${t.id}" data-group-id="${groupId}">
-          <span class="track-type-indicator"></span>
-          <span class="track-indicator">${indicator}</span>
-          <div class="track-thumb">${thumbHtml(t)}</div>
-          <div class="track-info">
-            <span class="track-name">
-              <span class="track-version-label">${version}</span>
-            </span>
-          </div>
-          <span class="track-tags"></span>
-          <span class="track-sparkline-wrap" title="Waveform">${sparklineSvg(t)}</span>
-          <span class="track-metadata">
-            <span class="track-format" title="Format">WAV</span>
-            <span class="track-filesize" title="File size">${versionFileSize}</span>
-            <span class="track-duration" title="Duration">${formatTime(t.duration_seconds)}</span>
-            ${versionDateStr ? `<span class="track-date" title="Modified">${versionDateStr}</span>` : ''}
-          </span>
-          <button class="track-edit-btn" data-track-id="${t.id}" title="Edit name">${lucideIcon('pencil', 13)}</button>
-        </div>`;
-    }).join('');
-
-    return `${groupHeader}<div class="track-group-versions collapsed" data-group-id="${groupId}">${versionRows}</div>`;
+  // Just render all tracks individually, no grouping
+  return tracks.map((t, i) => {
+    const displayIdx = t.originalIndex !== undefined ? t.originalIndex + 1 : i + 1;
+    return trackRowHtml(t, t.originalIndex !== undefined ? t.originalIndex : i, { showTags, displayIdx });
   }).join('');
 }
 
@@ -210,7 +130,7 @@ export function bindTrackRows() {
   content.querySelectorAll('.track-row').forEach(row => {
     row.addEventListener('click', (e) => {
       if (e.target.closest('.track-edit-btn')) return;
-      _playTrack?.(parseInt(row.dataset.index, 10));
+      _playTrack?.(parseInt(row.dataset.trackId, 10));
     });
   });
   bindEditButtons();
@@ -227,21 +147,13 @@ function bindEditButtons() {
   });
 }
 
+let _versionSelectorsInitialized = false;
+
+export function resetVersionSelectorsFlag() {
+  _versionSelectorsInitialized = false;
+}
+
 export function bindGroupHeaders() {
-  content.querySelectorAll('.track-group-header').forEach(header => {
-    header.addEventListener('click', (e) => {
-      if (e.target.closest('.track-edit-btn')) return;
-      const groupId = header.dataset.groupId;
-      const versions = content.querySelector(`.track-group-versions[data-group-id="${groupId}"]`);
-      const toggleIcon = header.querySelector('.track-group-toggle-icon');
-      versions.classList.toggle('collapsed');
-      const isExpanded = !versions.classList.contains('collapsed');
-      header.classList.toggle('expanded', isExpanded);
-      if (toggleIcon) {
-        toggleIcon.innerHTML = isExpanded
-          ? lucideIcon('chevron-down', 10)
-          : lucideIcon('chevron-right', 10);
-      }
-    });
-  });
+  // This function is no longer needed for version groups, but keeping it for compatibility
+  // In case there are other group types in the future
 }

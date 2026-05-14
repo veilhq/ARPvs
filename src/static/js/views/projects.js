@@ -1,5 +1,5 @@
 /**
- * views/projects.js — Projects, Unexported, and Favorites views.
+ * views/projects.js — Projects and Unexported views.
  */
 
 import { state } from '../state.js';
@@ -52,18 +52,6 @@ export function renderProjects(projects) {
       renderTrackList(projectTracks);
     });
   });
-}
-
-export function renderFavorites() {
-  state.currentView = { type: 'favorites', params: {} };
-  content.innerHTML = `
-    <div class="library-hero">
-      <div class="library-hero-title">Favorites</div>
-    </div>
-    <div class="empty-state">
-      <p>no favorites yet</p>
-      <p class="text-muted">click a track to start listening</p>
-    </div>`;
 }
 
 export function renderUnexportedProjects(projects) {
