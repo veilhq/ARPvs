@@ -24,7 +24,7 @@ else:
 DEFAULTS = {
     "scan_root": "",
     "host": "127.0.0.1",
-    "port": 8000,
+    "port": 8888,
     "window_width": 1200,
     "window_height": 800,
     "window_min_width": 800,

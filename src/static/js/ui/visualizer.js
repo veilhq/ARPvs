@@ -7,7 +7,7 @@
  */
 
 import { state } from '../state.js';
-import { drawBars, drawWaveform, drawParticles, drawDither, drawScope, drawSpectrogram } from '../visualizers/index.js';
+import { drawBars, drawWaveform, drawParticles, drawDither, drawScope, drawScopePolar, drawScopeChladni, drawScopeVector, drawSpectrogram } from '../visualizers/index.js';
 
 // --- Web Audio setup ---
 
@@ -77,6 +77,9 @@ const MODES = {
   particles: drawParticles,
   dither: drawDither,
   scope: drawScope,
+  'scope-polar': drawScopePolar,
+  'scope-chladni': drawScopeChladni,
+  'scope-vector': drawScopeVector,
   spectrogram: drawSpectrogram,
 };
 
@@ -88,6 +91,9 @@ export const MODE_INFO = {
   particles: { name: 'Particle Field', description: 'Reactive particle swarm driven by audio energy' },
   dither: { name: 'Dither Pulse', description: 'Bayer-dithered pattern reactive to audio energy' },
   scope: { name: 'Lissajous Scope', description: 'XY oscilloscope with phase-shifted channels' },
+  'scope-polar': { name: 'Polar Scope', description: 'Radial waveform in polar coordinates — blooming flower patterns' },
+  'scope-chladni': { name: 'Chladni Scope', description: 'Vibrating plate simulation — particles settle into nodal patterns' },
+  'scope-vector': { name: 'Vector Scope', description: 'Stereo vectorscope showing channel correlation and width' },
   spectrogram: { name: 'Spectrogram', description: 'Scrolling frequency waterfall display' },
 };
 
